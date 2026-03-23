@@ -242,6 +242,26 @@ export const contentResolver = async (
       ]
     );
 
+    // Inject sidebar resize handle
+    htmlOutput = htmlOutput.replace(
+      '</head>',
+      `<style>
+.ws-resize-handle{width:5px;cursor:col-resize;flex-shrink:0;background:transparent;position:relative;z-index:10}
+.ws-resize-handle:hover,.ws-resize-handle.ws-dragging{background:var(--interactive-accent);opacity:.5}
+.ws-sidebar.ws-collapsed+.ws-resize-handle{display:none}
+</style></head>`
+    );
+    htmlOutput = htmlOutput.replace(
+      '</nav>',
+      '</nav><div class="ws-resize-handle" id="ws-resize-handle"></div>'
+    );
+    htmlOutput = htmlOutput.replace(
+      '</body>',
+      `<script>
+(function(){var h=document.getElementById('ws-resize-handle'),s=document.getElementById('ws-sidebar');if(!h||!s)return;var d=false;h.addEventListener('mousedown',function(e){e.preventDefault();d=true;s.style.transition='none';h.classList.add('ws-dragging');document.body.style.cursor='col-resize';document.body.style.userSelect='none';});document.addEventListener('mousemove',function(e){if(!d)return;var w=Math.min(Math.max(e.clientX,120),600);s.style.width=w+'px';});document.addEventListener('mouseup',function(){if(!d)return;d=false;s.style.transition='';h.classList.remove('ws-dragging');document.body.style.cursor='';document.body.style.userSelect='';});})();
+</script></body>`
+    );
+
     // Hide sidebar if setting is off
     if (!plugin.settings.showSidebar) {
       htmlOutput = htmlOutput.replace(

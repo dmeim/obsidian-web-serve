@@ -107,6 +107,14 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     .ws-tree-children { display: none; }
     .ws-tree-children.ws-open { display: block; }
     .ws-tree-icon { margin-right: 5px; flex-shrink: 0; display: inline-flex; align-items: center; }
+    .ws-resize-handle {
+      width: 5px; cursor: col-resize; flex-shrink: 0;
+      background: transparent; position: relative; z-index: 10;
+    }
+    .ws-resize-handle:hover, .ws-resize-handle.ws-dragging {
+      background: var(--interactive-accent);
+      opacity: 0.5;
+    }
     .ws-main-content { flex: 1; overflow-y: auto; }
     .ws-toggle-btn {
       position: fixed; top: 8px; left: 8px; z-index: 100;
@@ -116,6 +124,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       display: none;
     }
     .ws-toggle-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+    .ws-sidebar.ws-collapsed + .ws-resize-handle { display: none; }
     .ws-sidebar.ws-collapsed ~ .ws-main-content .ws-toggle-btn { display: block; }
     .ws-close-btn {
       cursor: pointer; color: var(--text-muted); font-size: 14px; line-height: 1;
@@ -152,6 +161,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
         <div style="padding:12px;color:var(--text-muted);">Loading...</div>
       </div>
     </nav>
+    <div class="ws-resize-handle" id="ws-resize-handle"></div>
     <div class="ws-main-content">
       <button class="ws-toggle-btn" onclick="toggleSidebar()" title="Open sidebar">&#9776;</button>
       <div class="app-container">
@@ -218,6 +228,33 @@ export const DEFAULT_SETTINGS: PluginSettings = {
         }
       });
     }
+
+    (function() {
+      var handle = document.getElementById('ws-resize-handle');
+      var sidebar = document.getElementById('ws-sidebar');
+      var dragging = false;
+      handle.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        dragging = true;
+        sidebar.style.transition = 'none';
+        handle.classList.add('ws-dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        var w = Math.min(Math.max(e.clientX, 120), 600);
+        sidebar.style.width = w + 'px';
+      });
+      document.addEventListener('mouseup', function() {
+        if (!dragging) return;
+        dragging = false;
+        sidebar.style.transition = '';
+        handle.classList.remove('ws-dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      });
+    })();
 
     function _g(obj, key) { return obj[key]; }
     function _s(obj, key, val) { obj[key] = val; }
