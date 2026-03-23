@@ -132,11 +132,20 @@ export class ServerController {
    * Check if a resolved path is allowed by the current filter settings.
    */
   isPathAllowed(filePath: string): boolean {
-    const { filterMode, filterDirectories } = this.plugin.settings;
+    const { filterMode, filterDirectories, assetDirectories } = this.plugin.settings;
     if (filterMode === 'none' || filterDirectories.length === 0) return true;
 
     // Internal endpoints are always allowed
     if (filePath.startsWith('/.')) return true;
+
+    // Asset directories are always allowed regardless of filter mode
+    if (assetDirectories.length > 0) {
+      const normalizedAssetDirs = assetDirectories.map(d => d.replace(/\/+$/, ''));
+      const inAssetDir = normalizedAssetDirs.some(dir =>
+        filePath === dir || filePath.startsWith(dir + '/')
+      );
+      if (inAssetDir) return true;
+    }
 
     const normalizedDirs = filterDirectories.map(d => d.replace(/\/+$/, ''));
 

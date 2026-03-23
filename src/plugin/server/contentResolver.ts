@@ -13,13 +13,20 @@ export const contentResolver = async (
   extraVars: ReplaceableVariables[] = []
 ) => {
   if (path == INTERNAL_CSS_ENPOINT) {
-    const fullCssText =
+    let fullCssText =
       Array.from(document.styleSheets)
         .flatMap((styleSheet) =>
           Array.from(styleSheet.cssRules).map((cssRule) => cssRule.cssText)
         )
         .join('\n') +
       `\n.markdown-preview-view, .markdown-embed-content {height: unset !important;}`;
+
+    // Inline Obsidian's internal asset URLs (e.g. external-link icon SVG)
+    // that reference relative paths only valid inside the Obsidian app bundle
+    fullCssText = fullCssText.replace(
+      /url\(public\/images\/[a-f0-9]+\.svg\)/g,
+      `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='14' height='14' fill='none' stroke='%23888888' stroke-linecap='round' stroke-linejoin='round' stroke-width='9.38%25'><path d='M14 9 L3 9 3 29 23 29 23 18 M18 4 L28 4 28 14 M28 4 L14 18'/></svg>`)}")`
+    );
 
     return {
       contentType: 'text/css',

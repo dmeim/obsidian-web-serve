@@ -245,6 +245,54 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
         });
       });
 
+    // --- Asset Directories Setting ---
+    containerEl.createEl('h3', { text: 'Asset Directories' });
+
+    new Setting(containerEl)
+      .setName('Always-allowed directories')
+      .setDesc(
+        'Directories listed here are always accessible regardless of the filter mode. Use this for folders that hold images, recordings, or other assets linked from your notes.'
+      );
+
+    const assetDirsContainer = containerEl.createDiv();
+
+    const renderAssetDirs = () => {
+      assetDirsContainer.empty();
+      this.plugin.settings.assetDirectories.forEach((dir, index) => {
+        new Setting(assetDirsContainer)
+          .setName(dir || '(empty)')
+          .addText((cb) => {
+            cb.setValue(dir);
+            cb.setPlaceholder('Folder path (e.g. -references/)');
+            cb.onChange(async (value) => {
+              this.plugin.settings.assetDirectories[index] = value;
+              await this.saveAndReload();
+            });
+          })
+          .addExtraButton((cb) => {
+            cb.setIcon('x');
+            cb.setTooltip('Remove');
+            cb.onClick(async () => {
+              this.plugin.settings.assetDirectories.splice(index, 1);
+              await this.saveAndReload();
+              renderAssetDirs();
+            });
+          });
+      });
+
+      new Setting(assetDirsContainer).addButton((cb) => {
+        cb.setIcon('plus');
+        cb.setCta();
+        cb.setButtonText('Add Directory');
+        cb.onClick(async () => {
+          this.plugin.settings.assetDirectories.push('');
+          await this.saveAndReload();
+          renderAssetDirs();
+        });
+      });
+    };
+    renderAssetDirs();
+
     // --- Sidebar Setting ---
     new Setting(containerEl)
       .setName('Show File Sidebar')

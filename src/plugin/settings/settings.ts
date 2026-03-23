@@ -19,6 +19,7 @@ export type PluginSettings = {
   filterMode: FilterMode;
   filterDirectories: string[];
   autoDefaultFromFilter: boolean;
+  assetDirectories: string[];
   showSidebar: boolean;
 };
 
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   filterMode: 'none',
   filterDirectories: [],
   autoDefaultFromFilter: false,
+  assetDirectories: [],
   showSidebar: true,
   indexHtml: `<html>
 <head>
