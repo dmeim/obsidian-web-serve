@@ -232,6 +232,19 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
     };
     renderFilterDirs();
 
+    const autoDefaultSetting = new Setting(filterDirsContainer)
+      .setName('Auto-load first allowed note')
+      .setDesc(
+        'When visiting the root URL, automatically load the first allowed note from the filter list instead of showing an error.'
+      )
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.autoDefaultFromFilter);
+        cb.onChange(async (value) => {
+          this.plugin.settings.autoDefaultFromFilter = value;
+          await this.saveAndReload();
+        });
+      });
+
     // --- Sidebar Setting ---
     new Setting(containerEl)
       .setName('Show File Sidebar')

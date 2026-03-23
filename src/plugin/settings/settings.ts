@@ -18,6 +18,7 @@ export type PluginSettings = {
   simpleAuthPassword: string;
   filterMode: FilterMode;
   filterDirectories: string[];
+  autoDefaultFromFilter: boolean;
   showSidebar: boolean;
 };
 
@@ -29,6 +30,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   useRibbonButons: true,
   filterMode: 'none',
   filterDirectories: [],
+  autoDefaultFromFilter: false,
   showSidebar: true,
   indexHtml: `<html>
 <head>

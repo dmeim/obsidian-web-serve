@@ -10,6 +10,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import { randomBytes } from 'crypto';
 import { INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, tryResolveFilePath } from './pathResolver';
 import { contentResolver } from './contentResolver';
+import { TFile } from 'obsidian';
 
 export class ServerController {
   app: express.Application;
@@ -54,6 +55,24 @@ export class ServerController {
 
       if (!path || path === '/') {
         path = '/' + plugin.settings.defaultFile;
+
+        // If auto-default is enabled and the default file is empty or not allowed,
+        // redirect to the first allowed file from the filter list
+        if (plugin.settings.autoDefaultFromFilter) {
+          const defaultResolved = plugin.settings.defaultFile
+            ? tryResolveFilePath(path, '', app)
+            : null;
+          const defaultAllowed = defaultResolved ? this.isPathAllowed(defaultResolved) : false;
+
+          if (!defaultResolved || !defaultAllowed) {
+            const firstAllowed = this.getFirstAllowedFile();
+            if (firstAllowed) {
+              res.redirect('/' + firstAllowed);
+              res.end();
+              return;
+            }
+          }
+        }
       }
 
       const resolveFromPath = getResolveFromPath(req);
@@ -91,6 +110,22 @@ export class ServerController {
       res.write(r.payload);
       res.end();
     });
+  }
+
+  /**
+   * Get the first allowed .md file based on the current filter settings.
+   */
+  getFirstAllowedFile(): string | null {
+    const allFiles = this.plugin.app.vault.getFiles()
+      .filter((f: TFile) => f.extension === 'md' && !f.path.startsWith('.obsidian'))
+      .sort((a: TFile, b: TFile) => a.path.localeCompare(b.path));
+
+    for (const f of allFiles) {
+      if (this.isPathAllowed(f.path)) {
+        return f.path;
+      }
+    }
+    return null;
   }
 
   /**
