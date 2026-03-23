@@ -296,6 +296,12 @@ export const contentResolver = async (
       ]
     );
 
+    // Inject early theme restore from localStorage (prevents flash of wrong theme)
+    htmlOutput = htmlOutput.replace(
+      '</head>',
+      `<script>(function(){var s=localStorage.getItem('ws-theme');if(s){document.documentElement.className=s;document.addEventListener('DOMContentLoaded',function(){document.body.classList.remove('theme-dark','theme-light');document.body.classList.add(s)})}})()</script></head>`
+    );
+
     // Inject sidebar resize handle
     htmlOutput = htmlOutput.replace(
       '</head>',
@@ -306,15 +312,48 @@ export const contentResolver = async (
 .ws-tree-item,.ws-tree-folder-label{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;word-break:break-word}
 </style></head>`
     );
-    // Inject graph button into sidebar footer (before </nav>)
+    // Inject theme toggle + graph button into sidebar footer (before </nav>)
     htmlOutput = htmlOutput.replace(
       '</nav>',
-      `<div style="padding:8px;border-top:1px solid var(--background-modifier-border);flex-shrink:0"><button id="ws-graph-btn" style="display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-muted);font-size:12px;cursor:pointer" onmouseover="this.style.background='var(--background-modifier-hover)';this.style.color='var(--text-normal)'" onmouseout="this.style.background='var(--background-primary)';this.style.color='var(--text-muted)'" onclick="openGraph()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="16.5"/></svg>Graph view</button></div></nav>`
+      `<div style="padding:8px;border-top:1px solid var(--background-modifier-border);flex-shrink:0;display:flex;flex-direction:column;gap:4px">` +
+      `<button id="ws-theme-btn" style="display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-muted);font-size:12px;cursor:pointer" onmouseover="this.style.background='var(--background-modifier-hover)';this.style.color='var(--text-normal)'" onmouseout="this.style.background='var(--background-primary)';this.style.color='var(--text-muted)'" onclick="toggleTheme()">` +
+      `<svg id="ws-theme-icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>` +
+      `<svg id="ws-theme-icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>` +
+      `<span id="ws-theme-label">Toggle theme</span>` +
+      `</button>` +
+      `<button id="ws-graph-btn" style="display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-muted);font-size:12px;cursor:pointer" onmouseover="this.style.background='var(--background-modifier-hover)';this.style.color='var(--text-normal)'" onmouseout="this.style.background='var(--background-primary)';this.style.color='var(--text-muted)'" onclick="openGraph()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="16.5"/></svg>Graph view</button>` +
+      `</div></nav>`
     );
     htmlOutput = htmlOutput.replace(
       '</nav>',
       '</nav><div class="ws-resize-handle" id="ws-resize-handle"></div>'
     );
+    // Inject theme toggle script
+    htmlOutput = htmlOutput.replace(
+      '</body>',
+      `<script>
+function updateThemeUI(){
+  var isDark=document.body.classList.contains('theme-dark');
+  var sun=document.getElementById('ws-theme-icon-sun');
+  var moon=document.getElementById('ws-theme-icon-moon');
+  var label=document.getElementById('ws-theme-label');
+  if(sun)sun.style.display=isDark?'none':'block';
+  if(moon)moon.style.display=isDark?'block':'none';
+  if(label)label.textContent=isDark?'Light mode':'Dark mode';
+}
+function toggleTheme(){
+  var body=document.body;
+  var isDark=body.classList.contains('theme-dark');
+  body.classList.remove('theme-dark','theme-light');
+  var newTheme=isDark?'theme-light':'theme-dark';
+  body.classList.add(newTheme);
+  localStorage.setItem('ws-theme',newTheme);
+  updateThemeUI();
+}
+document.addEventListener('DOMContentLoaded',updateThemeUI);
+</script></body>`
+    );
+
     // Inject graph overlay + force-graph library + all scripts
     htmlOutput = htmlOutput.replace(
       '</body>',
