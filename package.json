@@ -26,6 +26,7 @@
     "@types/mime-types": "^2.1.1",
     "@types/node": "^16",
     "@types/node-ipc": "^9.2.0",
+    "@types/qrcode": "^1.5.6",
     "@typescript-eslint/eslint-plugin": "^5.55.0",
     "@typescript-eslint/parser": "^5.55.0",
     "builtin-modules": "3.3.0",
@@ -57,6 +58,7 @@
     "@types/passport": "^1.0.12",
     "@types/passport-local": "^1.0.35",
     "passport": "^0.6.0",
-    "passport-local": "^1.0.0"
+    "passport-local": "^1.0.0",
+    "qrcode": "^1.5.4"
   }
 }

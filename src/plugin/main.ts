@@ -3,6 +3,7 @@ import { PluginSettings, DEFAULT_SETTINGS } from './settings/settings';
 import { ServerController } from './server/controller';
 import { setupUiElements } from './uiSetup';
 import { HtmlServerPluginSettingsTab } from './settings/settingsTab';
+import { QrCodeModal, getServerUrl } from './qrModal';
 
 export default class HtmlServerPlugin extends Plugin {
   public settings!: PluginSettings;
@@ -50,6 +51,17 @@ export default class HtmlServerPlugin extends Plugin {
           this.stopServer();
         },
       });
+
+      this.addCommand({
+        id: 'show-qr-code',
+        name: 'Show Server QR Code',
+        checkCallback: (checking) => {
+          if (checking) {
+            return !!this.serverController?.isRunning();
+          }
+          this.showQrCode();
+        },
+      });
     });
   }
 
@@ -68,8 +80,16 @@ export default class HtmlServerPlugin extends Plugin {
       this.app.workspace.trigger('html-server-event', {
         isServerRunning: true,
       });
+      if (this.settings.showQrOnStart) {
+        this.showQrCode();
+      }
     }
     return !!this.serverController?.isRunning();
+  }
+
+  showQrCode() {
+    const url = getServerUrl(this.settings.port, this.settings.hostname);
+    new QrCodeModal(this.app, url).open();
   }
 
   async stopServer() {

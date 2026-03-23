@@ -86,6 +86,21 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
         });
       });
 
+    // QR Code on Start
+    new Setting(containerEl)
+      .setName('Show QR code on start')
+      .setTooltip('Default: On')
+      .setDesc(
+        'Display a QR code with the server URL when the server starts.'
+      )
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.showQrOnStart);
+        cb.onChange(async (value) => {
+          this.plugin.settings.showQrOnStart = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
     // Port
     const portSetting = new Setting(containerEl)
       .setName('Port')

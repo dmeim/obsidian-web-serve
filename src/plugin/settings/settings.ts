@@ -32,6 +32,7 @@ export type PluginSettings = {
   markdownIconPath: string;
   fileIconPath: string;
   canvasIconPath: string;
+  showQrOnStart: boolean;
 };
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   defaultFile: '',
   startOnLoad: false,
   useRibbonButons: true,
+  showQrOnStart: true,
   filterMode: 'none',
   filterDirectories: [],
   autoDefaultFromFilter: false,
