@@ -8,7 +8,7 @@ import { ObsidianMarkdownRenderer } from '../markdownRenderer/obsidianMarkdownRe
 import * as passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import { randomBytes } from 'crypto';
-import { INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT, tryResolveFilePath } from './pathResolver';
+import { INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT, INTERNAL_FORCE_GRAPH_ENDPOINT, tryResolveFilePath } from './pathResolver';
 import { contentResolver } from './contentResolver';
 import { TFile } from 'obsidian';
 
@@ -210,8 +210,8 @@ export class ServerController {
 
     if (path && [`.css`, `.ico`].find((ext) => path.endsWith(ext))) return next();
 
-    // Allow the files, icons, and links API endpoints through for sidebar/graph
-    if (req.path === INTERNAL_FILES_ENDPOINT || req.path === INTERNAL_ICONS_ENDPOINT || req.path === INTERNAL_LINKS_ENDPOINT) return next();
+    // Allow the files, icons, links, and vendor API endpoints through for sidebar/graph
+    if ([INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT, INTERNAL_FORCE_GRAPH_ENDPOINT].includes(req.path)) return next();
 
     const nonce = randomBytes(32).toString('base64');
 

@@ -1,4 +1,4 @@
-import { INTERNAL_CSS_ENPOINT, INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT } from './pathResolver';
+import { INTERNAL_CSS_ENPOINT, INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT, INTERNAL_FORCE_GRAPH_ENDPOINT } from './pathResolver';
 import HtmlServerPlugin from 'plugin/main';
 import { CustomMarkdownRenderer } from 'plugin/markdownRenderer/customMarkdownRenderer';
 import mime from 'mime-types';
@@ -209,6 +209,17 @@ export const contentResolver = async (
     };
   }
 
+  if (path == INTERNAL_FORCE_GRAPH_ENDPOINT) {
+    // @ts-ignore - adapter.basePath is available at runtime
+    const vaultBase: string = plugin.app.vault.adapter.basePath;
+    const vendorPath = nodePath.join(vaultBase, '.obsidian/plugins/web-serve/vendor/force-graph.min.js');
+    const jsContent = fs.existsSync(vendorPath) ? fs.readFileSync(vendorPath, 'utf8') : '';
+    return {
+      contentType: 'application/javascript',
+      payload: jsContent,
+    };
+  }
+
   if (path == INTERNAL_LINKS_ENDPOINT) {
     const { filterMode, filterDirectories } = plugin.settings;
     const normalizedDirs = filterDirectories.map((d: string) => d.replace(/\/+$/, ''));
@@ -300,16 +311,169 @@ export const contentResolver = async (
       '</nav>',
       '</nav><div class="ws-resize-handle" id="ws-resize-handle"></div>'
     );
-    // Inject graph overlay + all scripts
+    // Inject graph overlay + force-graph library + all scripts
     htmlOutput = htmlOutput.replace(
       '</body>',
-      `<div id="ws-graph-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:var(--background-primary);z-index:200;display:none;flex-direction:column"><div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--background-modifier-border);background:var(--background-secondary);flex-shrink:0"><span style="font-weight:600;font-size:14px;color:var(--text-normal)">Graph view</span><button onclick="closeGraph()" style="cursor:pointer;color:var(--text-muted);font-size:14px;line-height:1;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);flex-shrink:0" title="Close graph"><svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg></button></div><canvas id="ws-graph-canvas" style="flex:1;display:block"></canvas></div>
+      `<div id="ws-graph-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;display:none;flex-direction:column">
+<div style="position:absolute;top:12px;right:12px;z-index:210">
+<button onclick="closeGraph()" style="cursor:pointer;color:var(--text-muted);font-size:14px;line-height:1;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(30,30,30,0.8);flex-shrink:0;backdrop-filter:blur(8px)" title="Close graph (Esc)"><svg width="12" height="12" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg></button>
+</div>
+<div id="ws-graph-container" style="width:100%;height:100%"></div>
+</div>
+<script src="/.api/vendor/force-graph.min.js"></script>
 <script>
 (function(){var h=document.getElementById('ws-resize-handle'),s=document.getElementById('ws-sidebar');if(!h||!s)return;var d=false;h.addEventListener('mousedown',function(e){e.preventDefault();d=true;s.style.transition='none';h.classList.add('ws-dragging');document.body.style.cursor='col-resize';document.body.style.userSelect='none';});document.addEventListener('mousemove',function(e){if(!d)return;var w=Math.min(Math.max(e.clientX,120),600);s.style.width=w+'px';});document.addEventListener('mouseup',function(){if(!d)return;d=false;s.style.transition='';h.classList.remove('ws-dragging');document.body.style.cursor='';document.body.style.userSelect='';});})();
-var wsGraph={nodes:[],edges:[],raf:null,pan:{x:0,y:0},zoom:1,hover:null,nodeMap:{}};
-function openGraph(){var o=document.getElementById('ws-graph-overlay');o.style.display='flex';fetch('/.api/links').then(function(r){return r.json()}).then(function(data){wsGraph.nodes=data.nodes.map(function(n){return{id:n.id,name:n.name,x:Math.random()*800-400,y:Math.random()*600-300,vx:0,vy:0}});wsGraph.edges=data.edges;var deg={};data.edges.forEach(function(e){deg[e.source]=(deg[e.source]||0)+1;deg[e.target]=(deg[e.target]||0)+1});wsGraph.nodes.forEach(function(n){n.deg=deg[n.id]||0});wsGraph.nodeMap={};wsGraph.nodes.forEach(function(n){wsGraph.nodeMap[n.id]=n});startGraphSim()})}
-function closeGraph(){document.getElementById('ws-graph-overlay').style.display='none';if(wsGraph.raf)cancelAnimationFrame(wsGraph.raf);wsGraph.raf=null}
-function startGraphSim(){var canvas=document.getElementById('ws-graph-canvas');var ctx=canvas.getContext('2d');var nodes=wsGraph.nodes,edges=wsGraph.edges,nodeMap=wsGraph.nodeMap;var currentPath=decodeURI(window.location.pathname).substring(1);var alpha=1;function resize(){canvas.width=canvas.clientWidth;canvas.height=canvas.clientHeight}resize();window.addEventListener('resize',resize);var pan=wsGraph.pan={x:canvas.width/2,y:canvas.height/2};var zoomVal=wsGraph.zoom=1;canvas.addEventListener('wheel',function(e){e.preventDefault();var factor=e.deltaY<0?1.1:0.9;var rect=canvas.getBoundingClientRect();var mx=e.clientX-rect.left,my=e.clientY-rect.top;pan.x=mx-(mx-pan.x)*factor;pan.y=my-(my-pan.y)*factor;zoomVal*=factor;wsGraph.zoom=zoomVal},{passive:false});var dragNode=null,isPan=false,lastMouse={x:0,y:0};function toWorld(cx,cy){return{x:(cx-pan.x)/zoomVal,y:(cy-pan.y)/zoomVal}}function hitTest(cx,cy){var w=toWorld(cx,cy);for(var i=nodes.length-1;i>=0;i--){var n=nodes[i],r=4+Math.min(n.deg,20)*0.8;if((w.x-n.x)*(w.x-n.x)+(w.y-n.y)*(w.y-n.y)<(r+4)*(r+4))return n}return null}canvas.addEventListener('mousedown',function(e){var rect=canvas.getBoundingClientRect();var mx=e.clientX-rect.left,my=e.clientY-rect.top;var hit=hitTest(mx,my);if(hit){dragNode=hit;alpha=Math.max(alpha,0.3)}else{isPan=true}lastMouse={x:e.clientX,y:e.clientY}});canvas.addEventListener('mousemove',function(e){var rect=canvas.getBoundingClientRect();var mx=e.clientX-rect.left,my=e.clientY-rect.top;if(dragNode){var w=toWorld(mx,my);dragNode.x=w.x;dragNode.y=w.y;dragNode.vx=0;dragNode.vy=0;alpha=Math.max(alpha,0.3)}else if(isPan){pan.x+=e.clientX-lastMouse.x;pan.y+=e.clientY-lastMouse.y}else{var h=hitTest(mx,my);canvas.style.cursor=h?'pointer':'grab';wsGraph.hover=h}lastMouse={x:e.clientX,y:e.clientY}});canvas.addEventListener('mouseup',function(){dragNode=null;isPan=false});canvas.addEventListener('dblclick',function(e){var rect=canvas.getBoundingClientRect();var hit=hitTest(e.clientX-rect.left,e.clientY-rect.top);if(hit)window.location.href='/'+hit.id});function tick(){if(alpha<0.001){wsGraph.raf=requestAnimationFrame(tick);draw();return}alpha*=0.995;var repStr=800;for(var i=0;i<nodes.length;i++){for(var j=i+1;j<nodes.length;j++){var dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y;var d2=dx*dx+dy*dy+1;var f=repStr*alpha/d2;var fx=dx*f,fy=dy*f;nodes[i].vx-=fx;nodes[i].vy-=fy;nodes[j].vx+=fx;nodes[j].vy+=fy}}var attStr=0.06;edges.forEach(function(e){var s=nodeMap[e.source],t=nodeMap[e.target];if(!s||!t)return;var dx=t.x-s.x,dy=t.y-s.y;var d=Math.sqrt(dx*dx+dy*dy)+0.1;var f=(d-60)*attStr*alpha;var fx=(dx/d)*f,fy=(dy/d)*f;s.vx+=fx;s.vy+=fy;t.vx-=fx;t.vy-=fy});nodes.forEach(function(n){n.vx-=n.x*0.01*alpha;n.vy-=n.y*0.01*alpha});nodes.forEach(function(n){if(n===dragNode)return;n.vx*=0.6;n.vy*=0.6;n.x+=n.vx;n.y+=n.vy});draw();wsGraph.raf=requestAnimationFrame(tick)}function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.save();ctx.translate(pan.x,pan.y);ctx.scale(zoomVal,zoomVal);ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--background-modifier-border')||'#444';ctx.lineWidth=0.5;ctx.globalAlpha=0.4;edges.forEach(function(e){var s=nodeMap[e.source],t=nodeMap[e.target];if(!s||!t)return;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(t.x,t.y);ctx.stroke()});ctx.globalAlpha=1;var accentColor=getComputedStyle(document.body).getPropertyValue('--interactive-accent')||'#7f6df2';var mutedColor=getComputedStyle(document.body).getPropertyValue('--text-muted')||'#888';var normalColor=getComputedStyle(document.body).getPropertyValue('--text-normal')||'#ddd';nodes.forEach(function(n){var r=4+Math.min(n.deg,20)*0.8;var isCurrent=n.id===currentPath;var isHover=wsGraph.hover===n;ctx.beginPath();ctx.arc(n.x,n.y,r,0,Math.PI*2);ctx.fillStyle=isCurrent?accentColor:isHover?normalColor:mutedColor;ctx.globalAlpha=isCurrent?1:isHover?0.9:0.6;ctx.fill();ctx.globalAlpha=1;if(isCurrent||isHover||(zoomVal>1.5&&n.deg>2)){ctx.font=(isCurrent||isHover?'bold ':'')+'10px -apple-system, sans-serif';ctx.fillStyle=normalColor;ctx.textAlign='center';ctx.fillText(n.name,n.x,n.y-r-4)}});ctx.restore()}tick()}
+
+var wsGraphInstance = null;
+var wsHoverNode = null;
+var wsNeighbors = new Set();
+var wsLinksOf = new Set();
+
+function openGraph() {
+  var overlay = document.getElementById('ws-graph-overlay');
+  overlay.style.display = 'flex';
+  var container = document.getElementById('ws-graph-container');
+  container.innerHTML = '';
+
+  fetch('/.api/links').then(function(r) { return r.json(); }).then(function(data) {
+    var currentPath = decodeURI(window.location.pathname).substring(1);
+    var isDark = document.body.classList.contains('theme-dark');
+    var bgColor = isDark ? '#1a1a2e' : '#f0f0f4';
+    var nodeBaseColor = isDark ? 'rgba(168,162,200,0.6)' : 'rgba(108,102,140,0.5)';
+    var nodeHoverColor = isDark ? 'rgba(210,205,240,0.9)' : 'rgba(80,75,120,0.9)';
+    var accentColor = getComputedStyle(document.body).getPropertyValue('--interactive-accent').trim() || '#7f6df2';
+    var linkBaseColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)';
+    var linkHighlight = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)';
+    var labelColor = isDark ? 'rgba(220,220,235,0.9)' : 'rgba(40,40,50,0.9)';
+    var labelDim = isDark ? 'rgba(180,178,200,0.6)' : 'rgba(80,78,100,0.5)';
+
+    /* Build adjacency index for neighbor highlighting */
+    var adj = {};
+    data.edges.forEach(function(e) {
+      if (!adj[e.source]) adj[e.source] = [];
+      if (!adj[e.target]) adj[e.target] = [];
+      adj[e.source].push(e.target);
+      adj[e.target].push(e.source);
+    });
+
+    /* Degree for node sizing */
+    var deg = {};
+    data.edges.forEach(function(e) {
+      deg[e.source] = (deg[e.source] || 0) + 1;
+      deg[e.target] = (deg[e.target] || 0) + 1;
+    });
+    data.nodes.forEach(function(n) { n.deg = deg[n.id] || 0; });
+
+    wsGraphInstance = ForceGraph()(container)
+      .graphData({ nodes: data.nodes, links: data.edges.map(function(e) { return { source: e.source, target: e.target }; }) })
+      .backgroundColor(bgColor)
+      .nodeId('id')
+      .nodeVal(function(n) { return 1 + Math.sqrt(n.deg || 0) * 1.5; })
+      .nodeRelSize(4)
+      .nodeCanvasObject(function(node, ctx, globalScale) {
+        var r = 3 + Math.sqrt(node.deg || 0) * 1.8;
+        var isCurrent = node.id === currentPath;
+        var isHover = wsHoverNode === node;
+        var isNeighbor = wsNeighbors.has(node.id);
+        var dimmed = wsHoverNode && !isHover && !isNeighbor && !isCurrent;
+
+        /* Glow effect for current and hovered nodes */
+        if (isCurrent || isHover) {
+          var glowColor = isCurrent ? accentColor : nodeHoverColor;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, r * 2.5, 0, 2 * Math.PI);
+          var grad = ctx.createRadialGradient(node.x, node.y, r * 0.5, node.x, node.y, r * 2.5);
+          grad.addColorStop(0, glowColor.replace(')', ',0.3)').replace('rgb', 'rgba').replace('rgba(', 'rgba('));
+          var glowOuter = isCurrent ? accentColor + '00' : 'rgba(210,205,240,0)';
+          grad.addColorStop(1, glowOuter);
+          ctx.fillStyle = grad;
+          ctx.fill();
+        }
+
+        /* Node circle */
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+        if (isCurrent) {
+          ctx.fillStyle = accentColor;
+          ctx.globalAlpha = 1;
+        } else if (isHover) {
+          ctx.fillStyle = nodeHoverColor;
+          ctx.globalAlpha = 1;
+        } else if (isNeighbor) {
+          ctx.fillStyle = nodeHoverColor;
+          ctx.globalAlpha = 0.8;
+        } else {
+          ctx.fillStyle = nodeBaseColor;
+          ctx.globalAlpha = dimmed ? 0.15 : 0.6;
+        }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        /* Labels */
+        var showLabel = isCurrent || isHover || isNeighbor || globalScale > 2.5;
+        if (showLabel) {
+          var fontSize = Math.max(10 / globalScale, 2);
+          ctx.font = (isCurrent || isHover ? 'bold ' : '') + fontSize + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillStyle = (isCurrent || isHover) ? labelColor : labelDim;
+          ctx.globalAlpha = dimmed ? 0.2 : 1;
+          ctx.fillText(node.name, node.x, node.y + r + fontSize * 0.3);
+          ctx.globalAlpha = 1;
+        }
+      })
+      .nodeCanvasObjectMode(function() { return 'replace'; })
+      .linkColor(function(link) {
+        if (!wsHoverNode) return linkBaseColor;
+        var s = typeof link.source === 'object' ? link.source.id : link.source;
+        var t = typeof link.target === 'object' ? link.target.id : link.target;
+        if (s === wsHoverNode.id || t === wsHoverNode.id) return linkHighlight;
+        return isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)';
+      })
+      .linkWidth(function(link) {
+        if (!wsHoverNode) return 0.5;
+        var s = typeof link.source === 'object' ? link.source.id : link.source;
+        var t = typeof link.target === 'object' ? link.target.id : link.target;
+        if (s === wsHoverNode.id || t === wsHoverNode.id) return 1.5;
+        return 0.3;
+      })
+      .onNodeHover(function(node) {
+        wsHoverNode = node || null;
+        wsNeighbors.clear();
+        container.style.cursor = node ? 'pointer' : 'default';
+        if (node && adj[node.id]) {
+          adj[node.id].forEach(function(id) { wsNeighbors.add(id); });
+        }
+      })
+      .onNodeClick(function(node) {
+        if (node) window.location.href = '/' + node.id;
+      })
+      .warmupTicks(50)
+      .cooldownTime(3000);
+
+    var chargeForce = wsGraphInstance.d3Force('charge');
+    if (chargeForce) chargeForce.strength(-120);
+    var linkForce = wsGraphInstance.d3Force('link');
+    if (linkForce) linkForce.distance(50);
+
+    /* Zoom to fit after layout settles */
+    setTimeout(function() {
+      wsGraphInstance.zoomToFit(400, 60);
+    }, 1500);
+  });
+}
+
+function closeGraph() {
+  document.getElementById('ws-graph-overlay').style.display = 'none';
+  if (wsGraphInstance) { wsGraphInstance.pauseAnimation(); wsGraphInstance = null; }
+  document.getElementById('ws-graph-container').innerHTML = '';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && document.getElementById('ws-graph-overlay').style.display === 'flex') {
+    closeGraph();
+  }
+});
 </script></body>`
     );
 
