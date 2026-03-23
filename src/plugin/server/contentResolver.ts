@@ -220,6 +220,21 @@ export const contentResolver = async (
       );
     }
 
+    // Hide title if setting is off
+    if (!plugin.settings.showTitle) {
+      htmlOutput = htmlOutput.replace(
+        '</head>',
+        '<style>.inline-title{display:none!important}</style></head>'
+      );
+    }
+
+    // Apply title alignment and padding
+    const titleAlign = plugin.settings.titleAlignment || 'left';
+    htmlOutput = htmlOutput.replace(
+      '</head>',
+      `<style>.inline-title{text-align:${titleAlign};padding-left:16px;padding-right:16px;}</style></head>`
+    );
+
     return {
       contentType: 'text/html',
       payload: htmlOutput,

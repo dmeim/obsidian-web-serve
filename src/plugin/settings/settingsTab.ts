@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting } from 'typings';
 import HtmlServerPlugin from '../main';
 import * as obsidian from 'obsidian';
-import { DEFAULT_SETTINGS, PluginSettings } from './settings';
+import { DEFAULT_SETTINGS, PluginSettings, TitleAlignment } from './settings';
 import { FileSuggest } from './suggester/FileSuggester';
 
 export class HtmlServerPluginSettingsTab extends PluginSettingTab {
@@ -22,34 +22,60 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
     const { containerEl } = this;
 
     containerEl.empty();
+
+    // ──────────────────────────────────────
+    // Web Serve (version)
+    // ──────────────────────────────────────
     containerEl.createEl('h2', {
       text: `${this.plugin.manifest.name} ${this.plugin.manifest.version}`,
     });
 
-    // export type PluginSettings = {
-    //   indexHtml: string;
-    //   htmlVariables: { varName: string; varValue: string }[];
-    // };
-
-    new Setting(containerEl)
-      .setName('Start Server automatically.')
-      .setTooltip('Default: False')
+    // Start / Stop Server
+    const serverToggle = new Setting(containerEl)
+      .setName('Start / Stop Server')
       .setDesc(
-        'If true the server will start inmediately after loading the plugin.'
+        this.plugin.serverController?.isRunning()
+          ? 'Server is running.'
+          : 'Server is stopped.'
+      );
+
+    serverToggle.addToggle((cb) => {
+      cb.setValue(!!this.plugin.serverController?.isRunning());
+      cb.onChange(async (value) => {
+        if (value) {
+          await this.plugin.startServer();
+        } else {
+          await this.plugin.stopServer();
+        }
+        serverToggle.setDesc(
+          this.plugin.serverController?.isRunning()
+            ? 'Server is running.'
+            : 'Server is stopped.'
+        );
+      });
+    });
+
+    // Start Automatically
+    new Setting(containerEl)
+      .setName('Start automatically')
+      .setTooltip('Default: Off')
+      .setDesc(
+        'Start the server immediately when the plugin loads.'
       )
       .addToggle((cb) => {
         cb.setValue(this.plugin.settings.startOnLoad);
         cb.onChange(async (value) => {
           this.plugin.settings.startOnLoad = value;
-          await this.saveAndReload();
+          await this.plugin.saveSettings();
         });
       });
 
+    // Ribbon Button
     new Setting(containerEl)
-      .setName('Create Ribbon Button.')
-      .setTooltip('Default: true')
+      .setName('Ribbon button')
+      .setTooltip('Default: On')
       .setDesc(
-        'If true a ribbon button will be created in Obsidian to start/stop the server.'
+        'Show a ribbon button in Obsidian to start/stop the server.'
       )
       .addToggle((cb) => {
         cb.setValue(this.plugin.settings.useRibbonButons);
@@ -60,10 +86,11 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
         });
       });
 
+    // Port
     const portSetting = new Setting(containerEl)
-      .setName('Listening port.')
+      .setName('Port')
       .setTooltip('Default: 8080')
-      .setDesc('Port to listen for Http requests.');
+      .setDesc('Port to listen for HTTP requests.');
 
     const invalidPortElement = portSetting.infoEl.createDiv();
     invalidPortElement.hide();
@@ -85,22 +112,10 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
       });
     });
 
+    // Authentication
     new Setting(containerEl)
-      .setName('Index File.')
-      .setDesc(
-        'File to render initially, i.e. when no file is being requested.'
-      )
-      .addSearch((cb) => {
-        new FileSuggest(cb.inputEl);
-        cb.setValue(this.plugin.settings.defaultFile);
-        cb.onChange(async (value) => {
-          this.plugin.settings.defaultFile = value;
-          await this.saveAndReload();
-        });
-      });
-
-    new Setting(containerEl)
-      .setName('Use Simple Authentication (User/Password).')
+      .setName('Authentication')
+      .setDesc('Require username and password to access the server.')
       .addToggle((cb) => {
         cb.setValue(this.plugin.settings.useSimpleAuth);
         cb.onChange(async (value) => {
@@ -120,7 +135,7 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
     simpleAuthSettingsContainer.createDiv().classList.add('setting-item');
 
     const usernameSetting = new Setting(simpleAuthSettingsContainer)
-      .setName('Simple Auth Username.')
+      .setName('Username')
       .setTooltip('Username used to login.')
       .setDesc("Default: 'obsidian'");
 
@@ -144,15 +159,15 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
     });
 
     const passwordSetting = new Setting(simpleAuthSettingsContainer)
-      .setName('Simple Auth Password.')
+      .setName('Password')
       .setTooltip('Password used to login.')
-      .setDesc('Must be at least 6 characthers long');
+      .setDesc('Must be at least 6 characters long');
 
     const invalidPassword = passwordSetting.infoEl.createDiv();
     invalidPassword.hide();
     invalidPassword
       .createSpan('settings-error-element')
-      .setText("The password doesn't meet the minimum required lenght");
+      .setText("The password doesn't meet the minimum required length");
 
     passwordSetting.addText((cb) => {
       cb.inputEl.type = 'password';
@@ -168,11 +183,119 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
       });
     });
 
-    // --- Directory Filter Settings ---
-    containerEl.createEl('h3', { text: 'Directory Filter' });
+    // ──────────────────────────────────────
+    // Viewing
+    // ──────────────────────────────────────
+    containerEl.createEl('h3', { text: 'Viewing' });
 
     new Setting(containerEl)
-      .setName('Filter Mode')
+      .setName('Show file navigation bar')
+      .setDesc('Show the file navigation sidebar in the web view.')
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.showSidebar);
+        cb.onChange(async (value) => {
+          this.plugin.settings.showSidebar = value;
+          await this.saveAndReload();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName('Show note title')
+      .setDesc('Show the note title at the top of the web view.')
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.showTitle);
+        cb.onChange(async (value) => {
+          this.plugin.settings.showTitle = value;
+          await this.saveAndReload();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName('Note title alignment')
+      .setDesc('Align the note title in the web view.')
+      .addDropdown((dd) => {
+        dd.addOption('left', 'Left');
+        dd.addOption('center', 'Center');
+        dd.addOption('right', 'Right');
+        dd.setValue(this.plugin.settings.titleAlignment || 'left');
+        dd.onChange(async (value) => {
+          this.plugin.settings.titleAlignment = value as TitleAlignment;
+          await this.saveAndReload();
+        });
+      });
+
+    // ──────────────────────────────────────
+    // Assets
+    // ──────────────────────────────────────
+    containerEl.createEl('h3', { text: 'Assets' });
+
+    new Setting(containerEl)
+      .setName('Asset directories')
+      .setDesc(
+        'Directories listed here are always accessible regardless of the filter mode. Use this for folders that hold images, recordings, or other assets linked from your notes.'
+      );
+
+    const assetDirsContainer = containerEl.createDiv();
+
+    const renderAssetDirs = () => {
+      assetDirsContainer.empty();
+      this.plugin.settings.assetDirectories.forEach((dir, index) => {
+        new Setting(assetDirsContainer)
+          .setName(dir || '(empty)')
+          .addText((cb) => {
+            cb.setValue(dir);
+            cb.setPlaceholder('Folder path (e.g. -references/)');
+            cb.onChange(async (value) => {
+              this.plugin.settings.assetDirectories[index] = value;
+              await this.saveAndReload();
+            });
+          })
+          .addExtraButton((cb) => {
+            cb.setIcon('x');
+            cb.setTooltip('Remove');
+            cb.onClick(async () => {
+              this.plugin.settings.assetDirectories.splice(index, 1);
+              await this.saveAndReload();
+              renderAssetDirs();
+            });
+          });
+      });
+
+      new Setting(assetDirsContainer).addButton((cb) => {
+        cb.setIcon('plus');
+        cb.setCta();
+        cb.setButtonText('Add Directory');
+        cb.onClick(async () => {
+          this.plugin.settings.assetDirectories.push('');
+          await this.saveAndReload();
+          renderAssetDirs();
+        });
+      });
+    };
+    renderAssetDirs();
+
+    // ──────────────────────────────────────
+    // Filtering
+    // ──────────────────────────────────────
+    containerEl.createEl('h3', { text: 'Filtering' });
+
+    // Auto-load first allowed note
+    new Setting(containerEl)
+      .setName('Auto-load first allowed note')
+      .setDesc(
+        'When visiting the root URL, automatically load the first allowed note from the filter list instead of showing an error.'
+      )
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.autoDefaultFromFilter);
+        cb.onChange(async (value) => {
+          this.plugin.settings.autoDefaultFromFilter = value;
+          await this.saveAndReload();
+        });
+      });
+
+    // Filter Mode
+    new Setting(containerEl)
+      .setName('Filter mode')
       .setDesc(
         'Choose how to filter which directories are accessible. Whitelist: only listed directories are visible. Blacklist: listed directories are hidden.'
       )
@@ -232,83 +355,13 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
     };
     renderFilterDirs();
 
-    const autoDefaultSetting = new Setting(filterDirsContainer)
-      .setName('Auto-load first allowed note')
-      .setDesc(
-        'When visiting the root URL, automatically load the first allowed note from the filter list instead of showing an error.'
-      )
-      .addToggle((cb) => {
-        cb.setValue(this.plugin.settings.autoDefaultFromFilter);
-        cb.onChange(async (value) => {
-          this.plugin.settings.autoDefaultFromFilter = value;
-          await this.saveAndReload();
-        });
-      });
-
-    // --- Asset Directories Setting ---
-    containerEl.createEl('h3', { text: 'Asset Directories' });
-
-    new Setting(containerEl)
-      .setName('Always-allowed directories')
-      .setDesc(
-        'Directories listed here are always accessible regardless of the filter mode. Use this for folders that hold images, recordings, or other assets linked from your notes.'
-      );
-
-    const assetDirsContainer = containerEl.createDiv();
-
-    const renderAssetDirs = () => {
-      assetDirsContainer.empty();
-      this.plugin.settings.assetDirectories.forEach((dir, index) => {
-        new Setting(assetDirsContainer)
-          .setName(dir || '(empty)')
-          .addText((cb) => {
-            cb.setValue(dir);
-            cb.setPlaceholder('Folder path (e.g. -references/)');
-            cb.onChange(async (value) => {
-              this.plugin.settings.assetDirectories[index] = value;
-              await this.saveAndReload();
-            });
-          })
-          .addExtraButton((cb) => {
-            cb.setIcon('x');
-            cb.setTooltip('Remove');
-            cb.onClick(async () => {
-              this.plugin.settings.assetDirectories.splice(index, 1);
-              await this.saveAndReload();
-              renderAssetDirs();
-            });
-          });
-      });
-
-      new Setting(assetDirsContainer).addButton((cb) => {
-        cb.setIcon('plus');
-        cb.setCta();
-        cb.setButtonText('Add Directory');
-        cb.onClick(async () => {
-          this.plugin.settings.assetDirectories.push('');
-          await this.saveAndReload();
-          renderAssetDirs();
-        });
-      });
-    };
-    renderAssetDirs();
-
-    // --- Sidebar Setting ---
-    new Setting(containerEl)
-      .setName('Show File Sidebar')
-      .setDesc('Show the file navigation sidebar in the web view.')
-      .addToggle((cb) => {
-        cb.setValue(this.plugin.settings.showSidebar);
-        cb.onChange(async (value) => {
-          this.plugin.settings.showSidebar = value;
-          await this.saveAndReload();
-        });
-      });
-
+    // ──────────────────────────────────────
+    // Advanced
+    // ──────────────────────────────────────
     containerEl.createEl('h3', { text: 'Advanced' });
 
     new Setting(containerEl)
-      .setName('Show Advanced Settings.')
+      .setName('Show advanced settings')
       .addToggle((cb) => {
         cb.setValue(this.plugin.settings.showAdvancedOptions);
         cb.onChange(async (value) => {
@@ -328,22 +381,22 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
     const hostNameDescription = new DocumentFragment();
     hostNameDescription
       .createDiv()
-      .setText('Hostname/Ip Address to listen for Http requests.');
-    hostNameDescription.createDiv().setText('Commoly used:');
+      .setText('Hostname/IP address to listen for HTTP requests.');
+    hostNameDescription.createDiv().setText('Commonly used:');
     hostNameDescription
       .createDiv()
       .setText('- localhost (Only locally accessible)');
     hostNameDescription
       .createDiv()
       .setText(
-        '- {LAN Ip Address} or Hostname (Accessible in the local network)'
+        '- {LAN IP Address} or Hostname (Accessible in the local network)'
       );
     hostNameDescription
       .createDiv()
       .setText('- 0.0.0.0 (Listen on all interfaces)');
 
     const hostSetting = new Setting(advancedSettings)
-      .setName('Listening Hostname/Ip Address.')
+      .setName('Listening hostname / IP address')
       .setTooltip('Default: localhost (Only locally accessible)')
       .setDesc(hostNameDescription);
 
@@ -351,7 +404,7 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
     invalidHostElement.hide();
     invalidHostElement
       .createSpan('settings-error-element')
-      .setText('Must be a valid a non empty hostname/ip address');
+      .setText('Must be a valid non-empty hostname/IP address');
 
     hostSetting.addText((cb) => {
       cb.setValue(String(this.plugin.settings.hostname));
@@ -366,7 +419,7 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
     });
 
     /* const _htmlSettingItem =  */ new Setting(advancedSettings)
-      .setName('Custom index.html file.')
+      .setName('Custom index.html file')
       .addExtraButton((cb) => {
         cb.setIcon('refresh-ccw');
         cb.setTooltip('Restore Default Value');
@@ -396,9 +449,6 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
         });
       });
 
-    // htmlSettingItem.createDiv('setting-item-name').setText('Custom index.html file.');
-    // htmlSettingItem.createDiv('setting-item-name').setText('Custom index.html file.');
-
     const indexHtmlSetting = new Setting(advancedSettings);
 
     const invalidHtmlSettingElement = indexHtmlSetting.infoEl.createDiv();
@@ -408,8 +458,6 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
       .setText('Must be a valid a non empty string');
 
     indexHtmlSetting.settingEl.removeClass('setting-item');
-    //   .createDiv('setting-item-name')
-    //   .setText('Custom index.html file.');
     let textAreaComponent: obsidian.TextAreaComponent;
     indexHtmlSetting.addTextArea((cb) => {
       textAreaComponent = cb;
@@ -457,7 +505,6 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
                     }
                   ),
                 ];
-                // TODO
                 setVars(htmlVarsContainer, this.plugin, onChangeVar);
                 await this.saveAndReload();
                 modal.close();
@@ -515,6 +562,9 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
 
     setVars(htmlVarsContainer, this.plugin, onChangeVar);
 
+    // ──────────────────────────────────────
+    // Footer
+    // ──────────────────────────────────────
     containerEl.createEl('hr');
     const div1 = containerEl.createEl('div', {
       text: 'Developed by ',

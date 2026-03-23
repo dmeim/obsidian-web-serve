@@ -4,6 +4,8 @@ export type ReplaceableVariables = { varName: string; varValue: string };
 
 export type FilterMode = 'none' | 'whitelist' | 'blacklist';
 
+export type TitleAlignment = 'left' | 'center' | 'right';
+
 export type PluginSettings = {
   port: number;
   defaultFile: string;
@@ -21,6 +23,8 @@ export type PluginSettings = {
   autoDefaultFromFilter: boolean;
   assetDirectories: string[];
   showSidebar: boolean;
+  titleAlignment: TitleAlignment;
+  showTitle: boolean;
 };
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -34,6 +38,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   autoDefaultFromFilter: false,
   assetDirectories: [],
   showSidebar: true,
+  titleAlignment: 'left',
+  showTitle: true,
   indexHtml: `<html>
 <head>
   <meta charset="utf-8">
@@ -98,10 +104,12 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     .ws-toggle-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
     .ws-sidebar.ws-collapsed ~ .ws-main-content .ws-toggle-btn { display: block; }
     .ws-close-btn {
-      cursor: pointer; color: var(--text-muted); font-size: 16px; line-height: 1;
-      padding: 0 2px; border: none; background: none;
+      cursor: pointer; color: var(--text-muted); font-size: 14px; line-height: 1;
+      width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--background-modifier-border); border-radius: 4px;
+      background: var(--background-primary); flex-shrink: 0;
     }
-    .ws-close-btn:hover { color: var(--text-normal); }
+    .ws-close-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
     .ws-search-box {
       padding: 6px 8px; border-bottom: 1px solid var(--background-modifier-border);
     }
@@ -121,7 +129,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     <nav class="ws-sidebar" id="ws-sidebar">
       <div class="ws-sidebar-header">
         <span>Files</span>
-        <button class="ws-close-btn" onclick="toggleSidebar()" title="Close sidebar">&times;</button>
+        <button class="ws-close-btn" onclick="toggleSidebar()" title="Close sidebar"><svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg></button>
       </div>
       <div class="ws-search-box">
         <input type="text" id="ws-search" placeholder="Filter files..." oninput="filterTree(this.value)">
