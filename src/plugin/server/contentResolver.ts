@@ -287,7 +287,7 @@ export const contentResolver = async (
     }
 
     const displayName = file.basename.replace(/\.excalidraw$/, '');
-    const content = `<div id="ws-excalidraw-viewer"><div id="ws-excalidraw-loading" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>Loading Excalidraw viewer...</div></div>`;
+    const content = `<div id="ws-excalidraw-viewer"><div id="ws-excalidraw-loading" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>Loading Excalidraw viewer...</div><div id="ws-excalidraw-world"></div></div>`;
     let htmlOutput = buildPage(content, displayName, plugin);
     htmlOutput = applyShellChrome(htmlOutput, plugin);
 
@@ -296,11 +296,12 @@ export const contentResolver = async (
       `<style>
 .ws-main-content{position:relative!important}
 .ws-main-content .markdown-preview-pusher,.ws-main-content .inline-title,.ws-main-content .mod-header>:not(#ws-excalidraw-viewer){display:none!important}
-#ws-excalidraw-viewer{position:absolute!important;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--background-primary);z-index:5;overflow:auto}
-#ws-excalidraw-viewer svg{max-width:100%;max-height:100%}
+#ws-excalidraw-viewer{position:absolute!important;top:0;left:0;width:100%;height:100%;background:var(--background-primary);z-index:5;overflow:hidden;cursor:grab}
+#ws-excalidraw-viewer.ws-panning{cursor:grabbing}
+#ws-excalidraw-world{position:absolute;top:0;left:0;transform-origin:0 0}
 </style></head>`);
 
-    // Load @excalidraw/utils UMD from CDN + render
+    // Load @excalidraw/utils UMD from CDN + render with pan/zoom
     htmlOutput = htmlOutput.replace('</body>',
       `<script>
 window.__wsExcalidrawScene = ${JSON.stringify(sceneJson)};
@@ -309,6 +310,7 @@ window.__wsExcalidrawScene = ${JSON.stringify(sceneJson)};
 <script>
 (function(){
 var viewer = document.getElementById('ws-excalidraw-viewer');
+var world = document.getElementById('ws-excalidraw-world');
 var loading = document.getElementById('ws-excalidraw-loading');
 
 if (typeof ExcalidrawUtils === 'undefined') {
@@ -335,16 +337,109 @@ if (loading) loading.textContent = 'Rendering drawing...';
 ExcalidrawUtils.exportToSvg({
   elements: elements,
   appState: {
-    exportBackground: true,
-    viewBackgroundColor: (scene.appState && scene.appState.viewBackgroundColor) || (isDark ? '#1e1e1e' : '#ffffff'),
+    exportBackground: false,
+    viewBackgroundColor: 'transparent',
     exportWithDarkMode: isDark,
   },
   files: scene.files || null,
 }).then(function(svgEl) {
   if (loading) loading.remove();
-  svgEl.style.maxWidth = '100%';
-  svgEl.style.maxHeight = '100%';
-  viewer.appendChild(svgEl);
+  world.appendChild(svgEl);
+
+  /* Get SVG intrinsic dimensions for fit-to-view */
+  var svgW = svgEl.width.baseVal.value || svgEl.viewBox.baseVal.width || 800;
+  var svgH = svgEl.height.baseVal.value || svgEl.viewBox.baseVal.height || 600;
+
+  /* Pan & zoom state */
+  var panX = 0, panY = 0, scale = 1;
+  var isPanning = false, startMX = 0, startMY = 0, startPX = 0, startPY = 0;
+
+  function applyTransform() {
+    world.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
+  }
+
+  /* Fit to view initially */
+  var vw = viewer.clientWidth, vh = viewer.clientHeight;
+  var fitScale = Math.min(vw / svgW, vh / svgH, 1.5) * 0.9;
+  scale = fitScale;
+  panX = (vw - svgW * scale) / 2;
+  panY = (vh - svgH * scale) / 2;
+  applyTransform();
+
+  /* Mouse pan */
+  viewer.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return;
+    isPanning = true; startMX = ev.clientX; startMY = ev.clientY;
+    startPX = panX; startPY = panY;
+    viewer.classList.add('ws-panning');
+  });
+  document.addEventListener('mousemove', function(ev) {
+    if (!isPanning) return;
+    panX = startPX + (ev.clientX - startMX);
+    panY = startPY + (ev.clientY - startMY);
+    applyTransform();
+  });
+  document.addEventListener('mouseup', function() {
+    isPanning = false; viewer.classList.remove('ws-panning');
+  });
+
+  /* Wheel zoom (zoom toward cursor) */
+  viewer.addEventListener('wheel', function(ev) {
+    ev.preventDefault();
+    var rect = viewer.getBoundingClientRect();
+    var mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+    var delta = ev.deltaY > 0 ? 0.9 : 1.1;
+    var newScale = scale * delta;
+    newScale = Math.min(Math.max(newScale, 0.05), 10);
+    var ratio = newScale / scale;
+    panX = mx - (mx - panX) * ratio;
+    panY = my - (my - panY) * ratio;
+    scale = newScale;
+    applyTransform();
+  }, {passive: false});
+
+  /* Touch support: single-finger pan, pinch zoom */
+  var lastTouchDist = 0, lastTouchX = 0, lastTouchY = 0;
+  viewer.addEventListener('touchstart', function(ev) {
+    if (ev.touches.length === 1) {
+      isPanning = true; startMX = ev.touches[0].clientX; startMY = ev.touches[0].clientY;
+      startPX = panX; startPY = panY;
+    } else if (ev.touches.length === 2) {
+      isPanning = false;
+      var dx = ev.touches[0].clientX - ev.touches[1].clientX;
+      var dy = ev.touches[0].clientY - ev.touches[1].clientY;
+      lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+      lastTouchX = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
+      lastTouchY = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
+    }
+  }, {passive: true});
+  viewer.addEventListener('touchmove', function(ev) {
+    ev.preventDefault();
+    if (ev.touches.length === 1 && isPanning) {
+      panX = startPX + (ev.touches[0].clientX - startMX);
+      panY = startPY + (ev.touches[0].clientY - startMY);
+      applyTransform();
+    } else if (ev.touches.length === 2) {
+      var dx = ev.touches[0].clientX - ev.touches[1].clientX;
+      var dy = ev.touches[0].clientY - ev.touches[1].clientY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (lastTouchDist > 0) {
+        var ratio = dist / lastTouchDist;
+        var rect = viewer.getBoundingClientRect();
+        var mx = lastTouchX - rect.left, my = lastTouchY - rect.top;
+        panX = mx - (mx - panX) * ratio;
+        panY = my - (my - panY) * ratio;
+        scale *= ratio;
+        scale = Math.min(Math.max(scale, 0.05), 10);
+        applyTransform();
+      }
+      lastTouchDist = dist;
+      lastTouchX = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
+      lastTouchY = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
+    }
+  }, {passive: false});
+  viewer.addEventListener('touchend', function() { isPanning = false; lastTouchDist = 0; });
+
 }).catch(function(err) {
   console.error('web-serve: excalidraw export failed', err);
   viewer.innerHTML = '<div style="padding:20px;color:var(--text-error,#e93147)">Failed to render drawing: ' + (err.message || err) + '</div>';
