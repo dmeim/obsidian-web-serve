@@ -249,6 +249,7 @@ export const contentResolver = async (
 .ws-resize-handle{width:5px;cursor:col-resize;flex-shrink:0;background:transparent;position:relative;z-index:10}
 .ws-resize-handle:hover,.ws-resize-handle.ws-dragging{background:var(--interactive-accent);opacity:.5}
 .ws-sidebar.ws-collapsed+.ws-resize-handle{display:none}
+.ws-tree-item,.ws-tree-folder-label{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;word-break:break-word}
 </style></head>`
     );
     htmlOutput = htmlOutput.replace(

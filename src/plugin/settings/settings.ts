@@ -86,7 +86,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     .ws-tree-item {
       display: flex; align-items: center; padding: 3px 8px 3px calc(8px + var(--indent, 0) * 16px);
       cursor: pointer; color: var(--text-normal); text-decoration: none;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      word-break: break-word;
       border-radius: 4px; margin: 1px 4px;
     }
     .ws-tree-item:hover { background: var(--background-modifier-hover); }
@@ -94,7 +94,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     .ws-tree-folder-label {
       display: flex; align-items: center; padding: 3px 8px 3px calc(8px + var(--indent, 0) * 16px);
       cursor: pointer; color: var(--text-muted); font-weight: 500;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      word-break: break-word;
       border-radius: 4px; margin: 1px 4px; user-select: none;
     }
     .ws-tree-folder-label:hover { background: var(--background-modifier-hover); }
