@@ -1,0 +1,10 @@
+{
+  "id": "web-serve",
+  "name": "Web Serve",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Serve your Obsidian vault as a website accessible via a web browser, with a file sidebar and directory filtering.",
+  "author": "Dimitri Meimairidis",
+  "authorUrl": "https://github.com/dmeim",
+  "isDesktopOnly": true
+}
