@@ -332,6 +332,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
           icon.innerHTML = wsIconMap[file.path];
         } else if (wsIconMap[filePathNoExt]) {
           icon.innerHTML = wsIconMap[filePathNoExt];
+        } else if (file.excalidraw || file.name.match(/\\.excalidraw\\.md$/i)) {
+          icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>';
         } else if (file.name.match(/\\.canvas$/i)) {
           icon.innerHTML = wsDefaults.canvas || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
         } else if (file.name.match(/\\.md$/i)) {
@@ -341,7 +343,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
         }
         a.appendChild(icon);
         var nameSpan = document.createElement('span');
-        nameSpan.textContent = file.name.replace(/\\.(md|canvas)$/i, '');
+        nameSpan.textContent = file.name.replace(/\\.excalidraw\\.md$/i, '').replace(/\\.(md|canvas)$/i, '');
         a.appendChild(nameSpan);
         if ('/' + file.path === decodeURI(window.location.pathname)) {
           a.classList.add('ws-active');
