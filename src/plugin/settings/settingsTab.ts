@@ -225,6 +225,87 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
       });
 
     // ──────────────────────────────────────
+    // Styling
+    // ──────────────────────────────────────
+    containerEl.createEl('h3', { text: 'Styling' });
+
+    new Setting(containerEl)
+      .setName('Iconize support')
+      .setDesc('Use icons from the Iconize plugin for folders and files in the sidebar.')
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.useIconize);
+        cb.onChange(async (value) => {
+          this.plugin.settings.useIconize = value;
+          updateIconSectionVisibility();
+          await this.saveAndReload();
+        });
+      });
+
+    const iconizeContainer = containerEl.createDiv();
+    const customIconsContainer = containerEl.createDiv();
+
+    const updateIconSectionVisibility = () => {
+      if (this.plugin.settings.useIconize) {
+        iconizeContainer.show();
+        customIconsContainer.hide();
+      } else {
+        iconizeContainer.hide();
+        customIconsContainer.show();
+      }
+    };
+
+    // Iconize settings (shown when Iconize is ON)
+    new Setting(iconizeContainer)
+      .setName('Iconize data file')
+      .setDesc('Path to the Iconize plugin data.json file, relative to the vault root.')
+      .addText((cb) => {
+        cb.setValue(this.plugin.settings.iconizeDataPath);
+        cb.setPlaceholder('.obsidian/plugins/obsidian-icon-folder/data.json');
+        cb.onChange(async (value) => {
+          this.plugin.settings.iconizeDataPath = value;
+          await this.saveAndReload();
+        });
+      });
+
+    new Setting(iconizeContainer)
+      .setName('Icon packs directory')
+      .setDesc('Path to the directory containing icon pack folders, relative to the vault root.')
+      .addText((cb) => {
+        cb.setValue(this.plugin.settings.iconizeIconPacksPath);
+        cb.setPlaceholder('.obsidian/icons');
+        cb.onChange(async (value) => {
+          this.plugin.settings.iconizeIconPacksPath = value;
+          await this.saveAndReload();
+        });
+      });
+
+    // Custom icon settings (shown when Iconize is OFF)
+    const makeIconSetting = (
+      name: string,
+      desc: string,
+      settingKey: 'folderIconPath' | 'markdownIconPath' | 'fileIconPath' | 'canvasIconPath'
+    ) => {
+      new Setting(customIconsContainer)
+        .setName(name)
+        .setDesc(desc)
+        .addText((cb) => {
+          cb.setValue(this.plugin.settings[settingKey]);
+          cb.setPlaceholder('.obsidian/plugins/web-serve/icons/...');
+          cb.onChange(async (value) => {
+            this.plugin.settings[settingKey] = value;
+            await this.saveAndReload();
+          });
+        });
+    };
+
+    makeIconSetting('Folder icon', 'Path to an SVG file for folder icons.', 'folderIconPath');
+    makeIconSetting('Markdown file icon', 'Path to an SVG file for .md file icons.', 'markdownIconPath');
+    makeIconSetting('File icon', 'Path to an SVG file for generic file icons.', 'fileIconPath');
+    makeIconSetting('Canvas icon', 'Path to an SVG file for .canvas file icons.', 'canvasIconPath');
+
+    updateIconSectionVisibility();
+
+    // ──────────────────────────────────────
     // Assets
     // ──────────────────────────────────────
     containerEl.createEl('h3', { text: 'Assets' });

@@ -25,6 +25,13 @@ export type PluginSettings = {
   showSidebar: boolean;
   titleAlignment: TitleAlignment;
   showTitle: boolean;
+  useIconize: boolean;
+  iconizeDataPath: string;
+  iconizeIconPacksPath: string;
+  folderIconPath: string;
+  markdownIconPath: string;
+  fileIconPath: string;
+  canvasIconPath: string;
 };
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -40,6 +47,13 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   showSidebar: true,
   titleAlignment: 'left',
   showTitle: true,
+  useIconize: false,
+  iconizeDataPath: '.obsidian/plugins/obsidian-icon-folder/data.json',
+  iconizeIconPacksPath: '.obsidian/icons',
+  folderIconPath: '.obsidian/plugins/web-serve/icons/folder.svg',
+  markdownIconPath: '.obsidian/plugins/web-serve/icons/markdown.svg',
+  fileIconPath: '.obsidian/plugins/web-serve/icons/file.svg',
+  canvasIconPath: '.obsidian/plugins/web-serve/icons/canvas.svg',
   indexHtml: `<html>
 <head>
   <meta charset="utf-8">
@@ -224,7 +238,11 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       return root;
     }
 
-    function renderNode(node, container, depth) {
+    var wsIconMap = {};
+    var wsDefaults = {};
+
+    function renderNode(node, container, depth, ancestors) {
+      ancestors = ancestors || [];
       var keys = Object.keys(node).filter(function(k) { return k !== '__files'; }).sort();
       keys.forEach(function(folderName) {
         var folderDiv = document.createElement('div');
@@ -238,7 +256,12 @@ export const DEFAULT_SETTINGS: PluginSettings = {
         label.appendChild(chevron);
         var icon = document.createElement('span');
         icon.className = 'ws-tree-icon';
-        icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>';
+        var folderPath = ancestors.concat(folderName).join('/');
+        if (wsIconMap[folderPath]) {
+          icon.innerHTML = wsIconMap[folderPath];
+        } else {
+          icon.innerHTML = wsDefaults.folder || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>';
+        }
         label.appendChild(icon);
         var nameSpan = document.createElement('span');
         nameSpan.textContent = folderName;
@@ -246,7 +269,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
         folderDiv.appendChild(label);
         var childrenDiv = document.createElement('div');
         childrenDiv.className = 'ws-tree-children';
-        renderNode(_g(node, folderName), childrenDiv, depth + 1);
+        renderNode(_g(node, folderName), childrenDiv, depth + 1, ancestors.concat(folderName));
         folderDiv.appendChild(childrenDiv);
         label.addEventListener('click', function() {
           chevron.classList.toggle('ws-open');
@@ -263,14 +286,21 @@ export const DEFAULT_SETTINGS: PluginSettings = {
         a.setAttribute('data-name', file.name);
         var icon = document.createElement('span');
         icon.className = 'ws-tree-icon';
-        if (file.name.match(/\\.md$/i)) {
-          icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+        var filePathNoExt = file.path.replace(/\\.[^.]+$/, '');
+        if (wsIconMap[file.path]) {
+          icon.innerHTML = wsIconMap[file.path];
+        } else if (wsIconMap[filePathNoExt]) {
+          icon.innerHTML = wsIconMap[filePathNoExt];
+        } else if (file.name.match(/\\.canvas$/i)) {
+          icon.innerHTML = wsDefaults.canvas || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+        } else if (file.name.match(/\\.md$/i)) {
+          icon.innerHTML = wsDefaults.markdown || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
         } else {
-          icon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+          icon.innerHTML = wsDefaults.file || '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
         }
         a.appendChild(icon);
         var nameSpan = document.createElement('span');
-        nameSpan.textContent = file.name.replace(/\\.md$/i, '');
+        nameSpan.textContent = file.name.replace(/\\.(md|canvas)$/i, '');
         a.appendChild(nameSpan);
         if ('/' + file.path === decodeURI(window.location.pathname)) {
           a.classList.add('ws-active');
@@ -279,11 +309,18 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       });
     }
 
-    fetch('/.api/files').then(function(r) { return r.json(); }).then(function(data) {
+    Promise.all([
+      fetch('/.api/files').then(function(r) { return r.json(); }),
+      fetch('/.api/icons').then(function(r) { return r.json(); }).catch(function() { return { iconMap: {}, defaults: {} }; })
+    ]).then(function(results) {
+      var data = results[0];
+      var iconsData = results[1] || {};
+      wsIconMap = iconsData.iconMap || {};
+      wsDefaults = iconsData.defaults || {};
       var tree = buildTree(data.files);
       var container = document.getElementById('ws-file-tree');
       container.innerHTML = '';
-      renderNode(tree, container, 0);
+      renderNode(tree, container, 0, []);
       var active = container.querySelector('.ws-active');
       if (active) {
         var parent = active.parentElement;

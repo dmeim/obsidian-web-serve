@@ -1,9 +1,11 @@
-import { INTERNAL_CSS_ENPOINT, INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT } from './pathResolver';
+import { INTERNAL_CSS_ENPOINT, INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT } from './pathResolver';
 import HtmlServerPlugin from 'plugin/main';
 import { CustomMarkdownRenderer } from 'plugin/markdownRenderer/customMarkdownRenderer';
 import mime from 'mime-types';
 import { ReplaceableVariables } from 'plugin/settings/settings';
-import { App, TFile } from 'obsidian';
+import { App, TFile, TFolder, getIcon, normalizePath } from 'obsidian';
+import * as fs from 'fs';
+import * as nodePath from 'path';
 
 export const contentResolver = async (
   path: string,
@@ -179,6 +181,34 @@ export const contentResolver = async (
     };
   }
 
+  if (path == INTERNAL_ICONS_ENDPOINT) {
+    const iconMap = plugin.settings.useIconize
+      ? await resolveIconizeIcons(plugin)
+      : {};
+    // @ts-ignore - adapter.basePath is available at runtime
+    const vaultBase: string = plugin.app.vault.adapter.basePath;
+    const readIconFile = (relPath: string): string => {
+      try {
+        const abs = nodePath.join(vaultBase, relPath);
+        if (fs.existsSync(abs)) return fs.readFileSync(abs, 'utf8');
+      } catch {}
+      return '';
+    };
+    const response = {
+      iconMap,
+      defaults: {
+        folder: readIconFile(plugin.settings.folderIconPath),
+        markdown: readIconFile(plugin.settings.markdownIconPath),
+        file: readIconFile(plugin.settings.fileIconPath),
+        canvas: readIconFile(plugin.settings.canvasIconPath),
+      },
+    };
+    return {
+      contentType: 'application/json',
+      payload: JSON.stringify(response),
+    };
+  }
+
   const file = plugin.app.metadataCache.getFirstLinkpathDest(path, referer);
   if (!file) return null;
   console.log(file.path, file.name);
@@ -273,6 +303,106 @@ async function readFrontmatter(file: TFile, app: App) {
         resolve([]);
       });
   });
+}
+
+/**
+ * Icon pack prefix mappings following Iconize's naming convention.
+ * Hyphenated pack names: first char of first part (upper) + first char of subsequent parts (lower).
+ * Non-hyphenated: first char (upper) + second char (lower).
+ */
+const ICON_PACK_PREFIXES: Record<string, string> = {
+  'Fas': 'font-awesome-solid',
+  'Far': 'font-awesome-regular',
+  'Fab': 'font-awesome-brands',
+  'Li': 'lucide',
+  'Ri': 'remix-icons',
+  'Si': 'simple-icons',
+  'Ti': 'tabler-icons',
+  'Bo': 'boxicons',
+  'Ib': 'icon-brew',
+  'Co': 'coolicons',
+  'Fe': 'feather-icons',
+  'Oc': 'octicons',
+  'Ra': 'rpg-awesome',
+};
+
+function parseIconReference(iconRef: string): { prefix: string; packName: string; iconName: string } | null {
+  // Try longest prefix first (3-char like Fas, Far, Fab) then 2-char (Li, Ri, etc.)
+  for (const len of [3, 2]) {
+    const prefix = iconRef.substring(0, len);
+    if (ICON_PACK_PREFIXES[prefix]) {
+      return {
+        prefix,
+        packName: ICON_PACK_PREFIXES[prefix],
+        iconName: iconRef.substring(len),
+      };
+    }
+  }
+  return null;
+}
+
+function pascalToKebab(s: string): string {
+  return s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+async function resolveIconizeIcons(plugin: HtmlServerPlugin): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+
+  try {
+    // Get the vault's base path on disk
+    // @ts-ignore - adapter.basePath is available at runtime
+    const vaultBasePath: string = plugin.app.vault.adapter.basePath;
+
+    // Read Iconize's data.json directly from disk (not indexed by vault API)
+    const iconizeDataPath = nodePath.join(vaultBasePath, plugin.settings.iconizeDataPath);
+    if (!fs.existsSync(iconizeDataPath)) return result;
+
+    const raw = fs.readFileSync(iconizeDataPath, 'utf8');
+    const data = JSON.parse(raw);
+
+    // Use the icon packs path from plugin settings
+    const iconPacksAbsPath = nodePath.join(vaultBasePath, plugin.settings.iconizeIconPacksPath);
+
+    // Process each path→icon mapping (skip 'settings' key)
+    for (const [vaultPath, iconRef] of Object.entries(data)) {
+      if (vaultPath === 'settings' || typeof iconRef !== 'string') continue;
+
+      const parsed = parseIconReference(iconRef);
+      if (!parsed) continue;
+
+      let svgContent: string | null = null;
+
+      if (parsed.packName === 'lucide') {
+        // Use Obsidian's native getIcon() for Lucide icons
+        const kebabName = pascalToKebab(parsed.iconName);
+        const iconEl = getIcon(kebabName);
+        if (iconEl) {
+          // getIcon returns an SVGElement — serialize it
+          iconEl.setAttribute('width', '14');
+          iconEl.setAttribute('height', '14');
+          svgContent = iconEl.outerHTML;
+        }
+      } else {
+        // Read SVG from extracted icon pack directory on disk
+        const svgFilePath = nodePath.join(iconPacksAbsPath, parsed.packName, `${parsed.iconName}.svg`);
+        if (fs.existsSync(svgFilePath)) {
+          svgContent = fs.readFileSync(svgFilePath, 'utf8');
+          // Normalize size to 14px for sidebar consistency
+          svgContent = svgContent
+            .replace(/width="[^"]*"/, 'width="14"')
+            .replace(/height="[^"]*"/, 'height="14"');
+        }
+      }
+
+      if (svgContent) {
+        result[vaultPath] = svgContent;
+      }
+    }
+  } catch (e) {
+    console.error('web-serve: failed to resolve Iconize icons', e);
+  }
+
+  return result;
 }
 
 function parseHtmlVariables(
