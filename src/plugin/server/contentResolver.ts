@@ -274,6 +274,10 @@ export const contentResolver = async (
       plugin.settings.indexHtml || '<html></html>',
       [
         {
+          varName: 'VAULT_NAME',
+          varValue: plugin.app.vault.getName(),
+        },
+        {
           varName: 'RENDERED_CONTENT_FILE_NAME',
           varValue: file.basename,
         },

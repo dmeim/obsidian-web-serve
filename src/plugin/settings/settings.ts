@@ -130,9 +130,11 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     .ws-sidebar.ws-collapsed ~ .ws-main-content .ws-toggle-btn { display: block; }
     .ws-close-btn {
       cursor: pointer; color: var(--text-muted); font-size: 14px; line-height: 1;
-      width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; min-width: 24px; min-height: 24px;
+      display: inline-flex; align-items: center; justify-content: center;
       border: 1px solid var(--background-modifier-border); border-radius: 4px;
       background: var(--background-primary); flex-shrink: 0;
+      box-sizing: border-box; padding: 0;
     }
     .ws-close-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
     .ws-search-box {
@@ -153,7 +155,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   <div class="ws-layout">
     <nav class="ws-sidebar" id="ws-sidebar">
       <div class="ws-sidebar-header">
-        <span>Files</span>
+        <span>#VAR{VAULT_NAME}</span>
         <button class="ws-close-btn" onclick="toggleSidebar()" title="Close sidebar"><svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg></button>
       </div>
       <div class="ws-search-box">
