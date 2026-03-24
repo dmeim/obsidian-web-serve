@@ -119,15 +119,25 @@ hr{border:none;border-top:1px solid #e0e0e0;margin:1.5em 0}
 .footnotes{font-size:.85em;color:#666;border-top:1px solid #e0e0e0;margin-top:2em;padding-top:1em}
 .internal-link{color:#4078c0}
 .math{font-family:serif}
+.collapse-indicator,.heading-collapse-indicator{display:none!important}
+.markdown-preview-pusher,.mod-header{display:none!important}
+.markdown-preview-sizer{min-height:0!important;padding:0!important}
 </style></head>
 <body>
 ${renderedHtml}
 </body></html>`;
 
-        // Rewrite image src paths to file:// so they load from vault
+        // Rewrite image src to file:// — handle all formats:
+        //   src="/path" | src="app://local/path" | src="app://obsidian.md/path" | bare vault-relative
+        html = html.replace(/src="app:\/\/[^/]*\/([^"]+)"/g, (_: string, p: string) =>
+          `src="file://${vaultBase}/${decodeURIComponent(p)}"`
+        );
         html = html.replace(/src="\/([^"]+)"/g, (_: string, p: string) =>
           `src="file://${vaultBase}/${decodeURIComponent(p)}"`
         );
+        // Log first few image src for debugging
+        const imgSrcs = html.match(/src="[^"]*\.(jpg|jpeg|png|gif|svg|webp)"/gi) || [];
+        console.log('web-serve PDF: image srcs sample:', imgSrcs.slice(0, 3));
 
         const tmpFile = nodePath.join(os.tmpdir(), `ws-pdf-${Date.now()}.html`);
         fs.writeFileSync(tmpFile, html, 'utf-8');
