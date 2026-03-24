@@ -149,6 +149,59 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     }
     .ws-search-box input:focus { border-color: var(--interactive-accent); }
     .ws-tree-item.ws-hidden, .ws-tree-folder.ws-hidden { display: none; }
+    .ws-sidebar-backdrop {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 49;
+    }
+
+    /* ── Mobile: < 768px ── */
+    @media (max-width: 767px) {
+      .ws-sidebar {
+        position: fixed; top: 0; left: 0; height: 100dvh; z-index: 50;
+        width: 280px; min-width: 280px; max-width: 85vw;
+        transform: translateX(0); transition: transform 0.25s ease, visibility 0.25s;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-sizing: border-box;
+      }
+      .ws-sidebar.ws-collapsed {
+        transform: translateX(-100%); visibility: hidden;
+        width: 280px; min-width: 280px;
+      }
+      .ws-sidebar.ws-collapsed + .ws-resize-handle { display: none; }
+      .ws-sidebar:not(.ws-collapsed) ~ .ws-sidebar-backdrop { display: block; }
+      .ws-resize-handle { display: none !important; }
+      .ws-toggle-btn {
+        display: flex !important; position: fixed;
+        top: env(safe-area-inset-top, 8px); left: 8px; z-index: 100;
+        width: 44px; height: 44px; font-size: 22px;
+        align-items: center; justify-content: center;
+        padding: 0; -webkit-tap-highlight-color: transparent;
+      }
+      .ws-tree-item, .ws-tree-folder-label {
+        min-height: 44px; padding-top: 10px; padding-bottom: 10px;
+        font-size: 15px;
+      }
+      .ws-search-box input { min-height: 44px; font-size: 15px; padding: 8px 12px; }
+      .ws-close-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; font-size: 18px; }
+      .ws-sidebar-header { padding: 12px 12px 8px; font-size: 13px; }
+      .ws-main-content { padding-top: 0; }
+      .ws-main-content .markdown-preview-view { padding: 16px 12px; }
+      .ws-main-content .markdown-preview-view img { max-width: 100%; height: auto; }
+      .ws-main-content .inline-title { font-size: 1.6em; padding-top: 52px; }
+      .ws-main-content table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .ws-main-content pre { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      #ws-excalidraw-controls {
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+      }
+    }
+
+    /* ── Tablet: 768px–1024px ── */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .ws-sidebar { width: 240px; min-width: 200px; }
+      .ws-tree-item, .ws-tree-folder-label { min-height: 38px; padding-top: 7px; padding-bottom: 7px; }
+      .ws-search-box input { min-height: 38px; }
+      .ws-main-content .markdown-preview-view img { max-width: 100%; height: auto; }
+    }
   </style>
 </head>
 <body
@@ -168,6 +221,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       </div>
     </nav>
     <div class="ws-resize-handle" id="ws-resize-handle"></div>
+    <div class="ws-sidebar-backdrop" id="ws-sidebar-backdrop" onclick="toggleSidebar()"></div>
     <div class="ws-main-content">
       <button class="ws-toggle-btn" onclick="toggleSidebar()" title="Open sidebar">&#9776;</button>
       <div class="app-container">
@@ -205,9 +259,43 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     </div>
   </div>
   <script>
+    function isMobile() { return window.innerWidth < 768; }
+
     function toggleSidebar() {
-      document.getElementById('ws-sidebar').classList.toggle('ws-collapsed');
+      var sidebar = document.getElementById('ws-sidebar');
+      sidebar.classList.toggle('ws-collapsed');
     }
+
+    // Auto-collapse sidebar on mobile
+    if (isMobile()) {
+      document.getElementById('ws-sidebar').classList.add('ws-collapsed');
+    }
+
+    // Swipe gestures for sidebar
+    (function() {
+      var touchStartX = 0, touchStartY = 0, tracking = false;
+      var EDGE_ZONE = 30, THRESHOLD = 60;
+      document.addEventListener('touchstart', function(e) {
+        var t = e.touches[0];
+        touchStartX = t.clientX; touchStartY = t.clientY;
+        var sidebar = document.getElementById('ws-sidebar');
+        var isClosed = sidebar.classList.contains('ws-collapsed');
+        // Start tracking if swiping from left edge (to open) or anywhere (to close)
+        tracking = isClosed ? (touchStartX < EDGE_ZONE) : true;
+      }, { passive: true });
+      document.addEventListener('touchend', function(e) {
+        if (!tracking) return;
+        tracking = false;
+        var t = e.changedTouches[0];
+        var dx = t.clientX - touchStartX;
+        var dy = Math.abs(t.clientY - touchStartY);
+        if (dy > Math.abs(dx)) return; // vertical scroll, not swipe
+        var sidebar = document.getElementById('ws-sidebar');
+        var isClosed = sidebar.classList.contains('ws-collapsed');
+        if (isClosed && dx > THRESHOLD) { sidebar.classList.remove('ws-collapsed'); }
+        else if (!isClosed && dx < -THRESHOLD) { sidebar.classList.add('ws-collapsed'); }
+      }, { passive: true });
+    })();
 
     function filterTree(query) {
       query = query.toLowerCase().trim();
@@ -378,6 +466,14 @@ export const DEFAULT_SETTINGS: PluginSettings = {
           parent = parent.parentElement;
         }
         active.scrollIntoView({ block: 'center' });
+      }
+      // On mobile, close sidebar when a file link is clicked
+      if (isMobile()) {
+        container.querySelectorAll('.ws-tree-item').forEach(function(a) {
+          a.addEventListener('click', function() {
+            document.getElementById('ws-sidebar').classList.add('ws-collapsed');
+          });
+        });
       }
     }).catch(function(err) {
       document.getElementById('ws-file-tree').innerHTML = '<div style="padding:12px;color:var(--text-error);">Failed to load files</div>';

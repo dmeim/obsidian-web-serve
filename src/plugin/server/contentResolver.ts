@@ -938,6 +938,7 @@ function applyShellChrome(htmlOutput: string, plugin: HtmlServerPlugin): string 
 .ws-resize-handle:hover,.ws-resize-handle.ws-dragging{background:var(--interactive-accent);opacity:.5}
 .ws-sidebar.ws-collapsed+.ws-resize-handle{display:none}
 .ws-tree-item,.ws-tree-folder-label{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;word-break:break-word}
+@media(max-width:767px){.ws-resize-handle{display:none!important}#ws-theme-btn,#ws-graph-btn{min-height:44px;font-size:14px}#ws-graph-overlay>div:first-child button{width:44px;height:44px}#ws-excalidraw-controls{position:fixed!important;bottom:calc(20px + env(safe-area-inset-bottom,0px))!important;right:12px!important;font-size:14px;padding:6px 10px}#ws-excalidraw-controls button{min-width:44px;min-height:44px}#ws-excalidraw-fit{width:36px!important;height:36px!important}}
 </style></head>`
   );
 
