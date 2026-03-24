@@ -128,13 +128,23 @@ ${renderedHtml}
 </body></html>`;
 
         // Rewrite image src to file:// — handle all formats:
-        //   src="/path" | src="app://local/path" | src="app://obsidian.md/path" | bare vault-relative
-        html = html.replace(/src="app:\/\/[^/]*\/([^"]+)"/g, (_: string, p: string) =>
-          `src="file://${vaultBase}/${decodeURIComponent(p)}"`
-        );
-        html = html.replace(/src="\/([^"]+)"/g, (_: string, p: string) =>
-          `src="file://${vaultBase}/${decodeURIComponent(p)}"`
-        );
+        //   relative (../../-references/img.jpg), absolute (/path), app:// protocol
+        html = html.replace(/src="([^"]*\.(jpg|jpeg|png|gif|svg|webp|bmp|avif))"/gi, (_: string, src: string) => {
+          // Already a file:// or data: URI — leave it
+          if (src.startsWith('file://') || src.startsWith('data:')) return _;
+          // app:// protocol
+          if (src.startsWith('app://')) {
+            const p = src.replace(/^app:\/\/[^/]*\//, '');
+            return `src="file://${vaultBase}/${decodeURIComponent(p)}"`;
+          }
+          // Absolute path
+          if (src.startsWith('/')) {
+            return `src="file://${vaultBase}${decodeURIComponent(src)}"`;
+          }
+          // Relative path — strip leading ../ segments and resolve from vault root
+          const cleaned = src.replace(/^(\.\.\/)+/, '');
+          return `src="file://${vaultBase}/${decodeURIComponent(cleaned)}"`;
+        });
         // Log first few image src for debugging
         const imgSrcs = html.match(/src="[^"]*\.(jpg|jpeg|png|gif|svg|webp)"/gi) || [];
         console.log('web-serve PDF: image srcs sample:', imgSrcs.slice(0, 3));

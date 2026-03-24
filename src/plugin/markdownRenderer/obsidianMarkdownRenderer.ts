@@ -162,7 +162,12 @@ export class ObsidianMarkdownRenderer extends CustomMarkdownRenderer {
     imagesContainers.forEach((imageContainer) => {
       const src = imageContainer.getAttribute('src') || '';
       const imageElement = imageContainer.querySelector('img');
-      if (imageElement) imageElement.src = src;
+      if (imageElement) {
+        imageElement.src = src;
+        // Propagate Obsidian's |width sizing to the img element
+        const w = imageContainer.getAttribute('width');
+        if (w) imageElement.setAttribute('width', w);
+      }
     });
 
     // const callouts = el.querySelectorAll('.callout');
