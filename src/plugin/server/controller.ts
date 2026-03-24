@@ -2,6 +2,7 @@ import express, { Handler, Request } from 'express';
 import expressSession from 'express-session';
 
 import { IncomingMessage, Server, ServerResponse } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
 import HtmlServerPlugin from '../main';
 import { CustomMarkdownRenderer } from '../markdownRenderer/customMarkdownRenderer';
 import { ObsidianMarkdownRenderer } from '../markdownRenderer/obsidianMarkdownRenderer';
@@ -15,6 +16,7 @@ import { TFile } from 'obsidian';
 export class ServerController {
   app: express.Application;
   server?: Server<typeof IncomingMessage, typeof ServerResponse>;
+  wss?: WebSocketServer;
   markdownRenderer: CustomMarkdownRenderer;
 
   constructor(private plugin: HtmlServerPlugin) {
@@ -175,10 +177,33 @@ export class ServerController {
           resolve(undefined);
         }
       });
+
+      // Attach WebSocket server for live reload
+      if (this.server && this.plugin.settings.liveReload) {
+        this.wss = new WebSocketServer({ server: this.server, path: '/.ws/live-reload' });
+      }
     }
   }
 
+  /** Broadcast a live-reload message to all connected WebSocket clients */
+  broadcastReload(event: string, filePath: string) {
+    if (!this.wss) return;
+    const msg = JSON.stringify({ type: event, path: filePath });
+    this.wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(msg);
+      }
+    });
+  }
+
   async stop() {
+    // Close WebSocket server first
+    if (this.wss) {
+      this.wss.clients.forEach((client) => client.close());
+      this.wss.close();
+      this.wss = undefined;
+    }
+
     if (this.server && this.server.listening) {
       await new Promise<void>((resolve) => {
         this.server?.close((err) => {

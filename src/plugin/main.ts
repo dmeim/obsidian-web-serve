@@ -1,4 +1,5 @@
 import { Plugin } from 'typings';
+import { EventRef, TAbstractFile, TFile } from 'obsidian';
 import { PluginSettings, DEFAULT_SETTINGS } from './settings/settings';
 import { ServerController } from './server/controller';
 import { setupUiElements } from './uiSetup';
@@ -11,6 +12,7 @@ export default class HtmlServerPlugin extends Plugin {
   serverController?: ServerController;
 
   private uiCleanupFns?: { clearRibbonButtons: () => void };
+  private vaultEventRefs: EventRef[] = [];
 
   async onload() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -77,6 +79,7 @@ export default class HtmlServerPlugin extends Plugin {
   async startServer() {
     await this.serverController?.start();
     if (this.serverController?.isRunning()) {
+      this.registerVaultEvents();
       this.app.workspace.trigger('html-server-event', {
         isServerRunning: true,
       });
@@ -93,9 +96,37 @@ export default class HtmlServerPlugin extends Plugin {
   }
 
   async stopServer() {
+    this.unregisterVaultEvents();
     await this.serverController?.stop();
     this.app.workspace.trigger('html-server-event', { isServerRunning: false });
     return !this.serverController?.isRunning();
+  }
+
+  private registerVaultEvents() {
+    this.unregisterVaultEvents();
+    if (!this.settings.liveReload) return;
+
+    const broadcast = (event: string) => (file: TAbstractFile) => {
+      if (file instanceof TFile) {
+        this.serverController?.broadcastReload(event, file.path);
+      }
+    };
+
+    this.vaultEventRefs.push(
+      this.app.vault.on('modify', broadcast('modify')),
+      this.app.vault.on('create', broadcast('create')),
+      this.app.vault.on('delete', broadcast('delete')),
+      this.app.vault.on('rename', (file: TAbstractFile, oldPath: string) => {
+        if (file instanceof TFile) {
+          this.serverController?.broadcastReload('rename', file.path);
+        }
+      })
+    );
+  }
+
+  private unregisterVaultEvents() {
+    this.vaultEventRefs.forEach((ref) => this.app.vault.offref(ref));
+    this.vaultEventRefs = [];
   }
 
   ReloadUiElements() {

@@ -1133,6 +1133,47 @@ document.addEventListener('keydown', function(e) {
 </script></body>`
   );
 
+  // Live reload WebSocket client
+  if (plugin.settings.liveReload) {
+    htmlOutput = htmlOutput.replace(
+      '</body>',
+      `<script>
+(function(){
+  var wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var wsUrl = wsProto + '//' + location.host + '/.ws/live-reload';
+  var reconnectDelay = 1000;
+  var maxDelay = 30000;
+  var currentDelay = reconnectDelay;
+
+  function connect() {
+    var ws = new WebSocket(wsUrl);
+    ws.onopen = function() { currentDelay = reconnectDelay; };
+    ws.onmessage = function(e) {
+      try {
+        var msg = JSON.parse(e.data);
+        var currentPath = decodeURI(location.pathname).substring(1);
+        if (msg.type === 'modify' && msg.path === currentPath) {
+          location.reload();
+        } else if (msg.type === 'delete' && msg.path === currentPath) {
+          location.href = '/';
+        } else if (msg.type === 'rename' || msg.type === 'create' || msg.type === 'delete') {
+          location.reload();
+        }
+      } catch(err) {}
+    };
+    ws.onclose = function() {
+      setTimeout(function() {
+        currentDelay = Math.min(currentDelay * 2, maxDelay);
+        connect();
+      }, currentDelay);
+    };
+  }
+  connect();
+})();
+</script></body>`
+    );
+  }
+
   // Hide sidebar if setting is off
   if (!plugin.settings.showSidebar) {
     htmlOutput = htmlOutput.replace(

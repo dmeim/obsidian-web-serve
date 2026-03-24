@@ -4,6 +4,7 @@
   "defaultFile": "",
   "startOnLoad": false,
   "useRibbonButons": true,
+  "showQrOnStart": false,
   "filterMode": "whitelist",
   "filterDirectories": [
     "Theology"

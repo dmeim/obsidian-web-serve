@@ -2,7 +2,7 @@
 
 ## Features
 
-- [ ] **Live reload via WebSocket** — WebSocket server + client script for auto-refresh on vault changes (modify, create, delete, rename). Includes reconnection logic.
+- [x] **Live reload via WebSocket** — WebSocket server + client script for auto-refresh on vault changes (modify, create, delete, rename). Includes reconnection logic.
 - [ ] **Spruce up search/filter bar** — Fuzzy matching, content search via `/.api/search`, result highlighting, keyboard navigation. All results respect whitelist/blacklist filtering.
 - [x] **Light/dark theme toggle** — Sun/moon toggle defaulting to Obsidian's current theme. Persists viewer preference in localStorage. Swaps without page reload.
 - [ ] **Lightweight graph view** — Force-directed graph of linked notes (D3 or similar). Clickable nodes, current-note highlight. Respects whitelist/blacklist filtering.

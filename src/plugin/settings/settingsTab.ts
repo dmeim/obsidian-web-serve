@@ -101,6 +101,21 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
         });
       });
 
+    // Live Reload
+    new Setting(containerEl)
+      .setName('Live reload')
+      .setTooltip('Default: On')
+      .setDesc(
+        'Automatically refresh the browser when vault files change.'
+      )
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.liveReload);
+        cb.onChange(async (value) => {
+          this.plugin.settings.liveReload = value;
+          await this.saveAndReload();
+        });
+      });
+
     // Port
     const portSetting = new Setting(containerEl)
       .setName('Port')

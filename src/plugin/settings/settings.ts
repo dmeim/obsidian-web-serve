@@ -33,6 +33,7 @@ export type PluginSettings = {
   fileIconPath: string;
   canvasIconPath: string;
   showQrOnStart: boolean;
+  liveReload: boolean;
 };
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -56,6 +57,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   markdownIconPath: '.obsidian/plugins/web-serve/icons/markdown.svg',
   fileIconPath: '.obsidian/plugins/web-serve/icons/file.svg',
   canvasIconPath: '.obsidian/plugins/web-serve/icons/canvas.svg',
+  liveReload: true,
   indexHtml: `<html>
 <head>
   <meta charset="utf-8">
