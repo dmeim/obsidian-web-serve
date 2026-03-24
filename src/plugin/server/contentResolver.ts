@@ -287,7 +287,7 @@ export const contentResolver = async (
     }
 
     const displayName = file.basename.replace(/\.excalidraw$/, '');
-    const content = `<div id="ws-excalidraw-viewer"><div id="ws-excalidraw-loading" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>Loading Excalidraw viewer...</div><div id="ws-excalidraw-world"></div><div id="ws-excalidraw-controls"><span id="ws-excalidraw-zoom">100%</span><button id="ws-excalidraw-fit" title="Fit to view (0)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button></div></div>`;
+    const content = `<div id="ws-excalidraw-viewer"><div id="ws-excalidraw-loading" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>Loading Excalidraw viewer...</div><div id="ws-excalidraw-world"></div><div id="ws-excalidraw-controls"><button id="ws-excalidraw-zoom-out" title="Zoom out (-)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button><span id="ws-excalidraw-zoom">100%</span><button id="ws-excalidraw-zoom-in" title="Zoom in (+)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><button id="ws-excalidraw-fit" title="Fit to view (0)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button></div></div>`;
     let htmlOutput = buildPage(content, displayName, plugin);
     htmlOutput = applyShellChrome(htmlOutput, plugin);
 
@@ -302,8 +302,8 @@ export const contentResolver = async (
 #ws-excalidraw-controls{position:absolute;bottom:16px;right:16px;z-index:10;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;font-size:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;user-select:none;opacity:0;transition:opacity .2s}
 #ws-excalidraw-controls.ws-visible{opacity:1}
 #ws-excalidraw-zoom{min-width:36px;text-align:center}
-#ws-excalidraw-fit{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border:none;border-radius:4px;background:transparent;color:#fff;cursor:pointer;padding:0}
-#ws-excalidraw-fit:hover{background:rgba(255,255,255,0.2)}
+#ws-excalidraw-fit,#ws-excalidraw-zoom-in,#ws-excalidraw-zoom-out{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border:none;border-radius:4px;background:transparent;color:#fff;cursor:pointer;padding:0}
+#ws-excalidraw-fit:hover,#ws-excalidraw-zoom-in:hover,#ws-excalidraw-zoom-out:hover{background:rgba(255,255,255,0.2)}
 .ws-ex-link-overlay{fill:transparent;cursor:pointer;pointer-events:all}
 .ws-ex-link-overlay:hover{fill:rgba(59,130,246,0.12)}
 </style></head>`);
@@ -322,6 +322,8 @@ var loading = document.getElementById('ws-excalidraw-loading');
 var controls = document.getElementById('ws-excalidraw-controls');
 var zoomLabel = document.getElementById('ws-excalidraw-zoom');
 var fitBtn = document.getElementById('ws-excalidraw-fit');
+var zoomInBtn = document.getElementById('ws-excalidraw-zoom-in');
+var zoomOutBtn = document.getElementById('ws-excalidraw-zoom-out');
 
 if (typeof ExcalidrawUtils === 'undefined') {
   viewer.innerHTML = '<div style="padding:20px;color:var(--text-error,#e93147)">ExcalidrawUtils library not available</div>';
@@ -519,7 +521,20 @@ renderSvg(currentDark).then(function() {
   }, {passive: false});
   viewer.addEventListener('touchend', function() { isPanning = false; lastTouchDist = 0; });
 
-  /* --- Reset button --- */
+  /* --- Zoom & reset buttons --- */
+  function zoomByFactor(factor) {
+    var vw = viewer.clientWidth, vh = viewer.clientHeight;
+    var cx = vw / 2, cy = vh / 2;
+    var ns = Math.max(0.05, Math.min(scale * factor, 10));
+    panX = cx - (cx - panX) * (ns / scale); panY = cy - (cy - panY) * (ns / scale);
+    scale = ns; applyTransform();
+  }
+  if (zoomInBtn) zoomInBtn.addEventListener('click', function(ev) {
+    ev.stopPropagation(); zoomByFactor(1.1);
+  });
+  if (zoomOutBtn) zoomOutBtn.addEventListener('click', function(ev) {
+    ev.stopPropagation(); zoomByFactor(0.9);
+  });
   if (fitBtn) fitBtn.addEventListener('click', function(ev) {
     ev.stopPropagation(); resetView();
   });
