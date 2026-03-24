@@ -1,4 +1,4 @@
-import { INTERNAL_CSS_ENPOINT, INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT, INTERNAL_FORCE_GRAPH_ENDPOINT } from './pathResolver';
+import { INTERNAL_CSS_ENPOINT, INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT, INTERNAL_FORCE_GRAPH_ENDPOINT, INTERNAL_HTML2PDF_ENDPOINT, INTERNAL_EXPORT_MD_ENDPOINT } from './pathResolver';
 import HtmlServerPlugin from 'plugin/main';
 import { CustomMarkdownRenderer } from 'plugin/markdownRenderer/customMarkdownRenderer';
 import mime from 'mime-types';
@@ -218,6 +218,17 @@ export const contentResolver = async (
     // @ts-ignore - adapter.basePath is available at runtime
     const vaultBase: string = plugin.app.vault.adapter.basePath;
     const vendorPath = nodePath.join(vaultBase, '.obsidian/plugins/web-serve/vendor/force-graph.min.js');
+    const jsContent = fs.existsSync(vendorPath) ? fs.readFileSync(vendorPath, 'utf8') : '';
+    return {
+      contentType: 'application/javascript',
+      payload: jsContent,
+    };
+  }
+
+  if (path == INTERNAL_HTML2PDF_ENDPOINT) {
+    // @ts-ignore - adapter.basePath is available at runtime
+    const vaultBase: string = plugin.app.vault.adapter.basePath;
+    const vendorPath = nodePath.join(vaultBase, '.obsidian/plugins/web-serve/vendor/html2pdf.bundle.min.js');
     const jsContent = fs.existsSync(vendorPath) ? fs.readFileSync(vendorPath, 'utf8') : '';
     return {
       contentType: 'application/javascript',
@@ -949,24 +960,41 @@ function applyShellChrome(htmlOutput: string, plugin: HtmlServerPlugin): string 
   htmlOutput = htmlOutput.replace(
     '</head>',
     `<style>
+@media print{.ws-sidebar,.ws-resize-handle,.ws-sidebar-backdrop{display:none!important}.ws-main-content{margin:0!important;width:100%!important}button[id^="ws-"]{display:none!important}}
 .ws-resize-handle{width:5px;cursor:col-resize;flex-shrink:0;background:transparent;position:relative;z-index:10}
 .ws-resize-handle:hover,.ws-resize-handle.ws-dragging{background:var(--interactive-accent);opacity:.5}
 .ws-sidebar.ws-collapsed+.ws-resize-handle{display:none}
 .ws-tree-item,.ws-tree-folder-label{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;word-break:break-word}
-@media(max-width:767px){.ws-resize-handle{display:none!important}#ws-theme-btn,#ws-graph-btn{min-height:44px;font-size:14px}#ws-graph-overlay>div:first-child button{width:44px;height:44px}#ws-excalidraw-controls{position:fixed!important;bottom:calc(20px + env(safe-area-inset-bottom,0px))!important;right:12px!important;font-size:14px;padding:6px 10px}#ws-excalidraw-controls button{min-width:44px;min-height:44px}#ws-excalidraw-fit{width:36px!important;height:36px!important}}
+@media(max-width:767px){.ws-resize-handle{display:none!important}#ws-theme-btn,#ws-graph-btn,#ws-export-md-btn,#ws-export-pdf-btn{min-height:44px;font-size:14px}#ws-graph-overlay>div:first-child button{width:44px;height:44px}#ws-excalidraw-controls{position:fixed!important;bottom:calc(20px + env(safe-area-inset-bottom,0px))!important;right:12px!important;font-size:14px;padding:6px 10px}#ws-excalidraw-controls button{min-width:44px;min-height:44px}#ws-excalidraw-fit{width:36px!important;height:36px!important}}
 </style></head>`
   );
 
-  // Theme toggle + graph button in sidebar footer
+  // Export buttons + theme toggle + graph button in sidebar footer
+  const footerBtnStyle = `display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-muted);font-size:12px;cursor:pointer`;
+  const btnHoverOn = `this.style.background='var(--background-modifier-hover)';this.style.color='var(--text-normal)'`;
+  const btnHoverOff = `this.style.background='var(--background-primary)';this.style.color='var(--text-muted)'`;
   htmlOutput = htmlOutput.replace(
     '</nav>',
     `<div style="padding:8px;border-top:1px solid var(--background-modifier-border);flex-shrink:0;display:flex;flex-direction:column;gap:4px">` +
-    `<button id="ws-theme-btn" style="display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-muted);font-size:12px;cursor:pointer" onmouseover="this.style.background='var(--background-modifier-hover)';this.style.color='var(--text-normal)'" onmouseout="this.style.background='var(--background-primary)';this.style.color='var(--text-muted)'" onclick="toggleTheme()">` +
+    // Export row: two buttons side by side
+    `<div style="display:flex;gap:4px">` +
+    `<button id="ws-export-md-btn" style="${footerBtnStyle};justify-content:center" onmouseover="${btnHoverOn}" onmouseout="${btnHoverOff}" onclick="exportMarkdown()" title="Export as Markdown">` +
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>` +
+    `<span>Markdown</span>` +
+    `</button>` +
+    `<button id="ws-export-pdf-btn" style="${footerBtnStyle};justify-content:center" onmouseover="${btnHoverOn}" onmouseout="${btnHoverOff}" onclick="exportPdf()" title="Export as PDF">` +
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>` +
+    `<span>PDF</span>` +
+    `</button>` +
+    `</div>` +
+    // Theme toggle
+    `<button id="ws-theme-btn" style="${footerBtnStyle}" onmouseover="${btnHoverOn}" onmouseout="${btnHoverOff}" onclick="toggleTheme()">` +
     `<svg id="ws-theme-icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>` +
     `<svg id="ws-theme-icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>` +
     `<span id="ws-theme-label">Toggle theme</span>` +
     `</button>` +
-    `<button id="ws-graph-btn" style="display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-muted);font-size:12px;cursor:pointer" onmouseover="this.style.background='var(--background-modifier-hover)';this.style.color='var(--text-normal)'" onmouseout="this.style.background='var(--background-primary)';this.style.color='var(--text-muted)'" onclick="openGraph()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="16.5"/></svg>Graph view</button>` +
+    // Graph view
+    `<button id="ws-graph-btn" style="${footerBtnStyle}" onmouseover="${btnHoverOn}" onmouseout="${btnHoverOff}" onclick="openGraph()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="16.5"/></svg>Graph view</button>` +
     `</div></nav>`
   );
   htmlOutput = htmlOutput.replace(
@@ -997,6 +1025,35 @@ function toggleTheme(){
   updateThemeUI();
 }
 document.addEventListener('DOMContentLoaded',updateThemeUI);
+function exportMarkdown(){
+  var p=decodeURI(window.location.pathname).substring(1);
+  if(!p)return;
+  var a=document.createElement('a');
+  a.href='/.api/export/md?path='+encodeURIComponent(p);
+  a.download=p.split('/').pop()||'note.md';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+function exportPdf(){
+  var p=decodeURI(window.location.pathname).substring(1);
+  if(!p)return;
+  var btn=document.getElementById('ws-export-pdf-btn');
+  if(btn){btn.disabled=true;btn.querySelector('span').textContent='Exporting...';}
+  fetch('/.api/export/pdf?path='+encodeURIComponent(p))
+    .then(function(r){
+      if(!r.ok)throw new Error('Export failed: '+r.status);
+      return r.blob();
+    })
+    .then(function(blob){
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url;
+      a.download=p.split('/').pop().replace(/\\.md$/,'.pdf')||'note.pdf';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    })
+    .catch(function(e){console.error('PDF export error:',e);alert('PDF export failed: '+e.message);})
+    .finally(function(){if(btn){btn.disabled=false;btn.querySelector('span').textContent='PDF';}});
+}
 </script></body>`
   );
 

@@ -59,6 +59,7 @@
     "@types/jest-environment-puppeteer": "^5.0.4",
     "@types/passport": "^1.0.12",
     "@types/passport-local": "^1.0.35",
+    "html2pdf.js": "^0.14.0",
     "lz-string": "^1.5.0",
     "passport": "^0.6.0",
     "passport-local": "^1.0.0",

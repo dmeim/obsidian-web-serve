@@ -8,13 +8,16 @@ export const INTERNAL_FILES_ENDPOINT = '/.api/files';
 export const INTERNAL_ICONS_ENDPOINT = '/.api/icons';
 export const INTERNAL_LINKS_ENDPOINT = '/.api/links';
 export const INTERNAL_FORCE_GRAPH_ENDPOINT = '/.api/vendor/force-graph.min.js';
+export const INTERNAL_HTML2PDF_ENDPOINT = '/.api/vendor/html2pdf.bundle.min.js';
+export const INTERNAL_EXPORT_MD_ENDPOINT = '/.api/export/md';
+export const INTERNAL_EXPORT_PDF_ENDPOINT = '/.api/export/pdf';
 
 export const tryResolveFilePath: (
   requestedUrl: string,
   resolveFrom: string,
   app: App
 ) => string | null = (requestedUrl, resolveFrom, app) => {
-  if ([INTERNAL_CSS_ENPOINT, INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT, INTERNAL_FORCE_GRAPH_ENDPOINT].includes(requestedUrl))
+  if ([INTERNAL_CSS_ENPOINT, INTERNAL_LOGIN_ENPOINT, INTERNAL_FILES_ENDPOINT, INTERNAL_ICONS_ENDPOINT, INTERNAL_LINKS_ENDPOINT, INTERNAL_FORCE_GRAPH_ENDPOINT, INTERNAL_HTML2PDF_ENDPOINT, INTERNAL_EXPORT_MD_ENDPOINT, INTERNAL_EXPORT_PDF_ENDPOINT].includes(requestedUrl))
     return requestedUrl;
 
   const requestedFile = app.metadataCache.getFirstLinkpathDest(
