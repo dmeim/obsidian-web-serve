@@ -8,6 +8,8 @@ An Obsidian plugin that serves your vault as a read-only website on your local n
 
 - **Local HTTP server** — starts an Express server inside Obsidian, accessible from any device on the same network
 - **File sidebar** — navigable tree view with search/filter, drag-to-resize, and collapsible folders
+- **Breadcrumbs** — folder path trail above the note title (Home is clickable; folders are labels)
+- **Previous / next notes** — jump between adjacent files in the same folder, ordered like the sidebar
 - **Live reload** — WebSocket-based auto-refresh when notes are created, modified, deleted, or renamed
 - **Excalidraw viewer** — read-only rendering of `.excalidraw.md` files with pan, zoom, and clickable links
 - **Canvas viewer** — read-only rendering of `.canvas` files with positioned cards, edges, and pan/zoom
@@ -72,6 +74,8 @@ To stop the server, click the **Stop** ribbon button or use the command palette.
 | **Show sidebar** | `true` | Show the file navigation sidebar |
 | **Show title** | `true` | Show the note title inline above content |
 | **Title alignment** | `left` | Note title alignment: `left`, `center`, or `right` |
+| **Show breadcrumbs** | `true` | Show the folder path above the note title |
+| **Show previous / next** | `true` | Show links to adjacent notes in the same folder |
 
 ### Directory filtering
 

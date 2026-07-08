@@ -254,6 +254,28 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
         });
       });
 
+    new Setting(containerEl)
+      .setName('Show breadcrumbs')
+      .setDesc('Show the folder path above the note title.')
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.showBreadcrumbs !== false);
+        cb.onChange(async (value) => {
+          this.plugin.settings.showBreadcrumbs = value;
+          await this.saveAndReload();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName('Show previous / next navigation')
+      .setDesc('Show links to adjacent notes in the same folder.')
+      .addToggle((cb) => {
+        cb.setValue(this.plugin.settings.showPrevNext !== false);
+        cb.onChange(async (value) => {
+          this.plugin.settings.showPrevNext = value;
+          await this.saveAndReload();
+        });
+      });
+
     // ──────────────────────────────────────
     // Styling
     // ──────────────────────────────────────

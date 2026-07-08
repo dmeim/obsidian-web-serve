@@ -7,6 +7,7 @@ import { App, TFile, TFolder, getIcon, normalizePath } from 'obsidian';
 import * as fs from 'fs';
 import * as nodePath from 'path';
 import LZString from 'lz-string';
+import { buildBreadcrumbsHtml } from './navHelpers';
 
 export const contentResolver = async (
   path: string,
@@ -299,14 +300,19 @@ export const contentResolver = async (
 
     const displayName = file.basename.replace(/\.excalidraw$/, '');
     const content = `<div id="ws-excalidraw-viewer"><div id="ws-excalidraw-loading" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>Loading Excalidraw viewer...</div><div id="ws-excalidraw-world"></div><div id="ws-excalidraw-controls"><button id="ws-excalidraw-zoom-out" title="Zoom out (-)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button><span id="ws-excalidraw-zoom">100%</span><button id="ws-excalidraw-zoom-in" title="Zoom in (+)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><button id="ws-excalidraw-fit" title="Fit to view (0)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button></div></div>`;
-    let htmlOutput = buildPage(content, displayName, plugin);
-    htmlOutput = applyShellChrome(htmlOutput, plugin);
+    let htmlOutput = buildPage(content, displayName, plugin, [], file.path);
+    htmlOutput = applyShellChrome(htmlOutput, plugin, file.path);
 
     // Viewer-mode styles
     htmlOutput = htmlOutput.replace('</head>',
       `<style>
 .ws-main-content{position:relative!important}
-.ws-main-content .markdown-preview-pusher,.ws-main-content .inline-title,.ws-main-content .mod-header>:not(#ws-excalidraw-viewer){display:none!important}
+.ws-main-content .markdown-preview-pusher,.ws-main-content .inline-title,.ws-main-content .mod-header>:not(#ws-excalidraw-viewer):not(.ws-breadcrumbs){display:none!important}
+.ws-main-content .ws-breadcrumbs{position:relative;z-index:6;background:var(--background-primary)}
+.ws-main-content .ws-prev-next{position:absolute;left:0;right:0;bottom:0;z-index:6;margin:0;padding:12px 16px;background:linear-gradient(transparent,var(--background-primary) 30%);border-top:none;pointer-events:none}
+.ws-main-content .ws-prev-next .ws-prev-next-link{pointer-events:auto;padding:8px 10px;border-radius:6px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff}
+.ws-main-content .ws-prev-next .ws-prev-next-label{color:rgba(255,255,255,0.75)}
+.ws-main-content .ws-prev-next .ws-prev-next-title{color:#fff}
 #ws-excalidraw-viewer{position:absolute!important;top:0;left:0;width:100%;height:100%;background:var(--background-primary);z-index:5;overflow:hidden;cursor:grab}
 #ws-excalidraw-viewer.ws-panning{cursor:grabbing}
 #ws-excalidraw-world{position:absolute;top:0;left:0;transform-origin:0 0}
@@ -600,14 +606,19 @@ renderSvg(currentDark).then(function() {
   if (file.extension === 'canvas') {
     const canvasRaw = await file.vault.read(file);
     const content = `<div id="ws-canvas-viewer"><div id="ws-canvas-world"><svg id="ws-canvas-edges"></svg></div></div>`;
-    let htmlOutput = buildPage(content, file.basename, plugin);
-    htmlOutput = applyShellChrome(htmlOutput, plugin);
+    let htmlOutput = buildPage(content, file.basename, plugin, [], file.path);
+    htmlOutput = applyShellChrome(htmlOutput, plugin, file.path);
 
     // Viewer-mode styles: absolute-position the canvas viewer
     htmlOutput = htmlOutput.replace('</head>',
       `<style>
 .ws-main-content{position:relative!important}
-.ws-main-content .markdown-preview-pusher,.ws-main-content .inline-title,.ws-main-content .mod-header>:not(#ws-canvas-viewer){display:none!important}
+.ws-main-content .markdown-preview-pusher,.ws-main-content .inline-title,.ws-main-content .mod-header>:not(#ws-canvas-viewer):not(.ws-breadcrumbs){display:none!important}
+.ws-main-content .ws-breadcrumbs{position:relative;z-index:6;background:var(--background-primary)}
+.ws-main-content .ws-prev-next{position:absolute;left:0;right:0;bottom:0;z-index:6;margin:0;padding:12px 16px;background:linear-gradient(transparent,var(--background-primary) 30%);border-top:none;pointer-events:none}
+.ws-main-content .ws-prev-next .ws-prev-next-link{pointer-events:auto;padding:8px 10px;border-radius:6px;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff}
+.ws-main-content .ws-prev-next .ws-prev-next-label{color:rgba(255,255,255,0.75)}
+.ws-main-content .ws-prev-next .ws-prev-next-title{color:#fff}
 #ws-canvas-viewer{position:absolute!important;top:0;left:0;width:100%;height:100%;overflow:hidden;cursor:grab;background:var(--background-primary);z-index:5}
 #ws-canvas-viewer.ws-panning{cursor:grabbing}
 #ws-canvas-world{position:absolute;top:0;left:0;transform-origin:0 0}
@@ -894,8 +905,8 @@ viewer.addEventListener('touchend', function() { isPanning = false; lastTouchDis
       markdown
     );
 
-    let htmlOutput = buildPage(renderedMarkdown, file.basename, plugin, frontmatterVariables);
-    htmlOutput = applyShellChrome(htmlOutput, plugin);
+    let htmlOutput = buildPage(renderedMarkdown, file.basename, plugin, frontmatterVariables, file.path);
+    htmlOutput = applyShellChrome(htmlOutput, plugin, file.path);
 
     // Hide title if setting is off
     if (!plugin.settings.showTitle) {
@@ -930,8 +941,14 @@ function buildPage(
   content: string,
   fileName: string,
   plugin: HtmlServerPlugin,
-  extraVars: { varName: string; varValue: string }[] = []
+  extraVars: { varName: string; varValue: string }[] = [],
+  filePath?: string
 ): string {
+  const breadcrumbsHtml =
+    plugin.settings.showBreadcrumbs !== false && filePath
+      ? buildBreadcrumbsHtml(filePath)
+      : '';
+
   return parseHtmlVariables(
     plugin.settings.indexHtml || '<html></html>',
     [
@@ -942,6 +959,7 @@ function buildPage(
         varValue: document.body.classList.contains('theme-dark') ? 'theme-dark' : 'theme-light',
       },
       { varName: 'RENDERED_CONTENT', varValue: content },
+      { varName: 'BREADCRUMBS', varValue: breadcrumbsHtml },
       ...plugin.settings.htmlReplaceableVariables,
       ...extraVars,
     ]
@@ -949,7 +967,11 @@ function buildPage(
 }
 
 /** Apply shared shell chrome: theme toggle, graph button, resize handle, sidebar controls */
-function applyShellChrome(htmlOutput: string, plugin: HtmlServerPlugin): string {
+function applyShellChrome(
+  htmlOutput: string,
+  plugin: HtmlServerPlugin,
+  filePath?: string
+): string {
   // Early theme restore from localStorage (prevents flash of wrong theme)
   htmlOutput = htmlOutput.replace(
     '</head>',
@@ -960,7 +982,7 @@ function applyShellChrome(htmlOutput: string, plugin: HtmlServerPlugin): string 
   htmlOutput = htmlOutput.replace(
     '</head>',
     `<style>
-@media print{.ws-sidebar,.ws-resize-handle,.ws-sidebar-backdrop{display:none!important}.ws-main-content{margin:0!important;width:100%!important}button[id^="ws-"]{display:none!important}}
+@media print{.ws-sidebar,.ws-resize-handle,.ws-sidebar-backdrop,.ws-breadcrumbs,.ws-prev-next{display:none!important}.ws-main-content{margin:0!important;width:100%!important}button[id^="ws-"]{display:none!important}}
 .ws-resize-handle{width:5px;cursor:col-resize;flex-shrink:0;background:transparent;position:relative;z-index:10}
 .ws-resize-handle:hover,.ws-resize-handle.ws-dragging{background:var(--interactive-accent);opacity:.5}
 .ws-sidebar.ws-collapsed+.ws-resize-handle{display:none}
@@ -968,6 +990,133 @@ function applyShellChrome(htmlOutput: string, plugin: HtmlServerPlugin): string 
 @media(max-width:767px){.ws-resize-handle{display:none!important}#ws-theme-btn,#ws-graph-btn,#ws-export-md-btn,#ws-export-pdf-btn{min-height:44px;font-size:14px}#ws-graph-overlay>div:first-child button{width:44px;height:44px}#ws-excalidraw-controls{position:fixed!important;bottom:calc(20px + env(safe-area-inset-bottom,0px))!important;right:12px!important;font-size:14px;padding:6px 10px}#ws-excalidraw-controls button{min-width:44px;min-height:44px}#ws-excalidraw-fit{width:36px!important;height:36px!important}}
 </style></head>`
   );
+
+  const breadcrumbsHtml =
+    plugin.settings.showBreadcrumbs !== false && filePath
+      ? buildBreadcrumbsHtml(filePath)
+      : '';
+
+  // Fallback for saved/custom templates that predate breadcrumbs
+  if (
+    breadcrumbsHtml &&
+    !htmlOutput.includes('id="ws-breadcrumbs"') &&
+    !htmlOutput.includes("id='ws-breadcrumbs'")
+  ) {
+    if (htmlOutput.includes('class="inline-title"')) {
+      htmlOutput = htmlOutput.replace(
+        /(<div class="inline-title"[^>]*>)/,
+        `<nav class="ws-breadcrumbs" id="ws-breadcrumbs" aria-label="Breadcrumb">${breadcrumbsHtml}</nav>$1`
+      );
+    }
+  }
+
+  // Ensure nav styles exist on older saved templates
+  if (!htmlOutput.includes('.ws-breadcrumbs{') && !htmlOutput.includes('.ws-breadcrumbs {')) {
+    htmlOutput = htmlOutput.replace(
+      '</head>',
+      `<style>
+.ws-breadcrumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:8px 16px 0;font-size:12px;line-height:1.4;color:var(--text-muted)}
+.ws-breadcrumbs:empty{display:none}
+.ws-breadcrumbs-sep{color:var(--text-faint,var(--text-muted));opacity:.7;user-select:none}
+.ws-breadcrumbs-link{color:var(--text-muted);text-decoration:none}
+.ws-breadcrumbs-link:hover{color:var(--text-accent);text-decoration:underline}
+.ws-breadcrumbs-folder{color:var(--text-muted)}
+.ws-breadcrumbs-current{color:var(--text-normal)}
+.ws-prev-next{display:flex;justify-content:space-between;align-items:stretch;gap:12px;margin:28px 16px 16px;padding-top:16px;border-top:1px solid var(--background-modifier-border)}
+.ws-prev-next[hidden]{display:none!important}
+.ws-prev-next-link{display:flex;flex-direction:column;gap:2px;max-width:48%;min-height:44px;padding:8px 0;text-decoration:none;color:var(--text-normal);border-radius:4px}
+.ws-prev-next-link:hover{color:var(--text-accent)}
+.ws-prev-next-link.ws-next{margin-left:auto;text-align:right;align-items:flex-end}
+.ws-prev-next-link.ws-prev{align-items:flex-start}
+.ws-prev-next-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.ws-prev-next-title{font-size:14px;word-break:break-word}
+@media(max-width:767px){.ws-main-content .ws-breadcrumbs{padding-top:52px;padding-left:12px;padding-right:12px}.ws-main-content .ws-breadcrumbs+.inline-title{padding-top:8px}.ws-prev-next{margin-left:12px;margin-right:12px;flex-direction:column}.ws-prev-next-link{max-width:100%}.ws-prev-next-link.ws-next{margin-left:0;text-align:left;align-items:flex-start}}
+</style></head>`
+    );
+  }
+
+  // Fallback prev/next slot + client script for older saved templates
+  if (plugin.settings.showPrevNext !== false) {
+    if (
+      !htmlOutput.includes('id="ws-prev-next"') &&
+      !htmlOutput.includes("id='ws-prev-next'")
+    ) {
+      htmlOutput = htmlOutput.replace(
+        /(<script>[\s\S]*?function isMobile)/,
+        `<nav class="ws-prev-next" id="ws-prev-next" aria-label="Previous and next notes" hidden></nav>$1`
+      );
+      if (!htmlOutput.includes('id="ws-prev-next"')) {
+        htmlOutput = htmlOutput.replace(
+          '</body>',
+          `<nav class="ws-prev-next" id="ws-prev-next" aria-label="Previous and next notes" hidden></nav></body>`
+        );
+      }
+    }
+
+    if (!htmlOutput.includes('function updatePrevNext')) {
+      htmlOutput = htmlOutput.replace(
+        '</body>',
+        `<script>
+(function(){
+  function parentDir(filePath){
+    var idx=filePath.lastIndexOf('/');
+    return idx===-1?'':filePath.slice(0,idx);
+  }
+  function displayNavName(fileName){
+    return fileName.replace(/\\.excalidraw\\.md$/i,'').replace(/\\.(md|canvas)$/i,'');
+  }
+  function updatePrevNext(files){
+    var nav=document.getElementById('ws-prev-next');
+    if(!nav||nav.getAttribute('data-ws-disabled')==='1')return;
+    var currentPath=decodeURI(window.location.pathname).substring(1);
+    if(!currentPath){nav.hidden=true;nav.innerHTML='';return;}
+    var parent=parentDir(currentPath);
+    var siblings=files.filter(function(f){return parentDir(f.path)===parent;})
+      .sort(function(a,b){return a.name.localeCompare(b.name);});
+    var index=-1;
+    for(var i=0;i<siblings.length;i++){if(siblings[i].path===currentPath){index=i;break;}}
+    if(index===-1){nav.hidden=true;nav.innerHTML='';return;}
+    var prev=index>0?siblings[index-1]:null;
+    var next=index<siblings.length-1?siblings[index+1]:null;
+    if(!prev&&!next){nav.hidden=true;nav.innerHTML='';return;}
+    var html='';
+    if(prev){
+      html+='<a class="ws-prev-next-link ws-prev" href="/'+encodeURI(prev.path).replace(/#/g,'%23')+'"><span class="ws-prev-next-label">&larr; Previous</span><span class="ws-prev-next-title"></span></a>';
+    }
+    if(next){
+      html+='<a class="ws-prev-next-link ws-next" href="/'+encodeURI(next.path).replace(/#/g,'%23')+'"><span class="ws-prev-next-label">Next &rarr;</span><span class="ws-prev-next-title"></span></a>';
+    }
+    nav.innerHTML=html;
+    var links=nav.querySelectorAll('.ws-prev-next-link');
+    var linkIdx=0;
+    if(prev){links[linkIdx].querySelector('.ws-prev-next-title').textContent=displayNavName(prev.name);linkIdx++;}
+    if(next){links[linkIdx].querySelector('.ws-prev-next-title').textContent=displayNavName(next.name);}
+    nav.hidden=false;
+  }
+  fetch('/.api/files').then(function(r){return r.json();}).then(function(data){
+    updatePrevNext(data.files||[]);
+  }).catch(function(){});
+})();
+</script></body>`
+      );
+    }
+  }
+
+  // Disable client prev/next when the setting is off
+  if (plugin.settings.showPrevNext === false) {
+    htmlOutput = htmlOutput.replace(
+      '</body>',
+      `<script>(function(){var n=document.getElementById('ws-prev-next');if(n){n.setAttribute('data-ws-disabled','1');n.hidden=true;n.innerHTML=''}})()</script></body>`
+    );
+  }
+
+  // Hide breadcrumbs nav when the setting is off
+  if (plugin.settings.showBreadcrumbs === false) {
+    htmlOutput = htmlOutput.replace(
+      '</head>',
+      '<style>.ws-breadcrumbs{display:none!important}</style></head>'
+    );
+  }
 
   // Export buttons + theme toggle + graph button in sidebar footer
   const footerBtnStyle = `display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border:1px solid var(--background-modifier-border);border-radius:4px;background:var(--background-primary);color:var(--text-muted);font-size:12px;cursor:pointer`;
