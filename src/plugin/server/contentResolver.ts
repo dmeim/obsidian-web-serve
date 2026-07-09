@@ -1015,7 +1015,7 @@ function applyShellChrome(
     htmlOutput = htmlOutput.replace(
       '</head>',
       `<style>
-.ws-breadcrumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:8px 16px 0;font-size:12px;line-height:1.4;color:var(--text-muted)}
+.ws-breadcrumbs{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 6px;padding:8px 16px 0;font-size:12px;line-height:1.4;color:var(--text-muted)}
 .ws-breadcrumbs:empty{display:none}
 .ws-breadcrumbs-sep{color:var(--text-faint,var(--text-muted));opacity:.7;user-select:none}
 .ws-breadcrumbs-link{color:var(--text-muted);text-decoration:none}
@@ -1030,7 +1030,7 @@ function applyShellChrome(
 .ws-prev-next-link.ws-prev{align-items:flex-start}
 .ws-prev-next-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
 .ws-prev-next-title{font-size:14px;word-break:break-word}
-@media(max-width:767px){.ws-main-content .ws-breadcrumbs{padding-top:52px;padding-left:12px;padding-right:12px}.ws-main-content .ws-breadcrumbs+.inline-title{padding-top:8px}.ws-prev-next{margin-left:12px;margin-right:12px;flex-direction:column}.ws-prev-next-link{max-width:100%}.ws-prev-next-link.ws-next{margin-left:0;text-align:left;align-items:flex-start}}
+@media(max-width:767px){.ws-main-content .ws-breadcrumbs{padding-top:52px;padding-left:56px;padding-right:56px}.ws-main-content .ws-breadcrumbs+.inline-title{padding-top:8px}.ws-prev-next{margin-left:12px;margin-right:12px;flex-direction:column}.ws-prev-next-link{max-width:100%}.ws-prev-next-link.ws-next{margin-left:0;text-align:left;align-items:flex-start}}
 </style></head>`
     );
   }

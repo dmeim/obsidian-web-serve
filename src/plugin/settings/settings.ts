@@ -158,7 +158,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       background: rgba(0,0,0,0.5); z-index: 49;
     }
     .ws-breadcrumbs {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 6px;
       padding: 8px 16px 0; font-size: 12px; line-height: 1.4;
       color: var(--text-muted);
     }
@@ -224,7 +224,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       .ws-main-content .markdown-preview-view { padding: 16px 12px; }
       .ws-main-content .markdown-preview-view img { max-width: 100%; height: auto; }
       .ws-main-content .inline-title { font-size: 1.6em; padding-top: 52px; }
-      .ws-main-content .ws-breadcrumbs { padding-top: 52px; padding-left: 12px; padding-right: 12px; }
+      .ws-main-content .ws-breadcrumbs { padding-top: 52px; padding-left: 56px; padding-right: 56px; }
       .ws-main-content .ws-breadcrumbs + .inline-title { padding-top: 8px; }
       .ws-prev-next { margin-left: 12px; margin-right: 12px; flex-direction: column; }
       .ws-prev-next-link { max-width: 100%; }
