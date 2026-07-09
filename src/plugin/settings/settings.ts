@@ -27,6 +27,9 @@ export type PluginSettings = {
   showTitle: boolean;
   showBreadcrumbs: boolean;
   showPrevNext: boolean;
+  pinBreadcrumbs: boolean;
+  pinTitle: boolean;
+  pinPrevNext: boolean;
   useIconize: boolean;
   iconizeDataPath: string;
   iconizeIconPacksPath: string;
@@ -54,6 +57,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   showTitle: true,
   showBreadcrumbs: true,
   showPrevNext: true,
+  pinBreadcrumbs: false,
+  pinTitle: false,
+  pinPrevNext: false,
   useIconize: false,
   iconizeDataPath: '.obsidian/plugins/obsidian-icon-folder/data.json',
   iconizeIconPacksPath: '.obsidian/icons',
@@ -172,7 +178,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     .ws-breadcrumbs-current { color: var(--text-normal); }
     .ws-prev-next {
       display: flex; justify-content: space-between; align-items: stretch; gap: 12px;
-      margin: 28px 16px 16px; padding-top: 16px;
+      margin: 28px 28px 16px; padding-top: 16px;
       border-top: 1px solid var(--background-modifier-border);
     }
     .ws-prev-next[hidden] { display: none !important; }
@@ -282,8 +288,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
                               <div class="markdown-preview-pusher" style="width: 1px; height: 0.1px; margin-bottom: 0px;"></div>
                               <div class="mod-header">
                                 <nav class="ws-breadcrumbs" id="ws-breadcrumbs" aria-label="Breadcrumb">#VAR{BREADCRUMBS}</nav>
-                                <div class="inline-title" contenteditable="true" spellcheck="false" tabindex="-1" enterkeyhint="done">#VAR{RENDERED_CONTENT_FILE_NAME}
-                                </div>
+                                <div class="inline-title" contenteditable="false" spellcheck="false">#VAR{RENDERED_CONTENT_FILE_NAME}</div>
                                 #VAR{RENDERED_CONTENT}
                               </div>
                               <nav class="ws-prev-next" id="ws-prev-next" aria-label="Previous and next notes" hidden></nav>

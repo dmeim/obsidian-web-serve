@@ -916,11 +916,24 @@ viewer.addEventListener('touchend', function() { isPanning = false; lastTouchDis
       );
     }
 
-    // Apply title alignment and padding
+    // Apply title alignment and padding; keep title read-only in the web viewer
     const titleAlign = plugin.settings.titleAlignment || 'left';
     htmlOutput = htmlOutput.replace(
       '</head>',
-      `<style>.inline-title{text-align:${titleAlign};padding-left:16px;padding-right:16px;}</style></head>`
+      `<style>.inline-title{text-align:${titleAlign};padding-left:16px;padding-right:16px;cursor:default;user-select:text;caret-color:transparent}</style></head>`
+    );
+    htmlOutput = htmlOutput.replace(
+      /<div class="inline-title"([^>]*)>/g,
+      (_match, attrs: string) => {
+        const cleaned = String(attrs).replace(/\s*contenteditable="[^"]*"/g, '');
+        return `<div class="inline-title"${cleaned} contenteditable="false">`;
+      }
+    );
+    // Collapse template whitespace that becomes a second editable line
+    htmlOutput = htmlOutput.replace(
+      /(<div class="inline-title"[^>]*>)\s*([\s\S]*?)\s*(<\/div>)/,
+      (_match, open: string, text: string, close: string) =>
+        open + String(text).trim() + close
     );
 
     return {
@@ -1022,7 +1035,7 @@ function applyShellChrome(
 .ws-breadcrumbs-link:hover{color:var(--text-accent);text-decoration:underline}
 .ws-breadcrumbs-folder{color:var(--text-muted)}
 .ws-breadcrumbs-current{color:var(--text-normal)}
-.ws-prev-next{display:flex;justify-content:space-between;align-items:stretch;gap:12px;margin:28px 16px 16px;padding-top:16px;border-top:1px solid var(--background-modifier-border)}
+.ws-prev-next{display:flex;justify-content:space-between;align-items:stretch;gap:12px;margin:28px 28px 16px;padding-top:16px;border-top:1px solid var(--background-modifier-border)}
 .ws-prev-next[hidden]{display:none!important}
 .ws-prev-next-link{display:flex;flex-direction:column;gap:2px;max-width:48%;min-height:44px;padding:8px 0;text-decoration:none;color:var(--text-normal);border-radius:4px}
 .ws-prev-next-link:hover{color:var(--text-accent)}
@@ -1041,15 +1054,82 @@ function applyShellChrome(
       !htmlOutput.includes('id="ws-prev-next"') &&
       !htmlOutput.includes("id='ws-prev-next'")
     ) {
-      htmlOutput = htmlOutput.replace(
-        /(<script>[\s\S]*?function isMobile)/,
-        `<nav class="ws-prev-next" id="ws-prev-next" aria-label="Previous and next notes" hidden></nav>$1`
-      );
-      if (!htmlOutput.includes('id="ws-prev-next"')) {
+      const navHtml =
+        '<nav class="ws-prev-next" id="ws-prev-next" aria-label="Previous and next notes" hidden></nav>';
+      let injected = false;
+
+      // Prefer last child of .markdown-preview-sizer so it scrolls with note content.
+      // Older saved templates omit the slot and the isMobile-script hook, which used
+      // to fall back to </body> and place the nav outside .ws-main-content.
+      const sizerClassIdx = htmlOutput.search(/class=["']markdown-preview-sizer\b/);
+      if (sizerClassIdx !== -1) {
+        const divStart = htmlOutput.lastIndexOf('<div', sizerClassIdx);
+        if (divStart !== -1) {
+          let depth = 0;
+          let i = divStart;
+          while (i < htmlOutput.length) {
+            if (
+              htmlOutput.startsWith('<div', i) &&
+              /[\s>]/.test(htmlOutput.charAt(i + 4) || '')
+            ) {
+              depth++;
+              const gt = htmlOutput.indexOf('>', i);
+              i = gt === -1 ? htmlOutput.length : gt + 1;
+              continue;
+            }
+            if (htmlOutput.startsWith('</div>', i)) {
+              depth--;
+              if (depth === 0) {
+                htmlOutput =
+                  htmlOutput.slice(0, i) + navHtml + htmlOutput.slice(i);
+                injected = true;
+                break;
+              }
+              i += 6;
+              continue;
+            }
+            i++;
+          }
+        }
+      }
+
+      if (!injected) {
         htmlOutput = htmlOutput.replace(
-          '</body>',
-          `<nav class="ws-prev-next" id="ws-prev-next" aria-label="Previous and next notes" hidden></nav></body>`
+          /(<script>[\s\S]*?function isMobile)/,
+          `${navHtml}$1`
         );
+        injected = htmlOutput.includes('id="ws-prev-next"');
+      }
+      if (!injected) {
+        // Last resort: append inside .ws-main-content before its closing tree ends
+        const mainIdx = htmlOutput.indexOf('class="ws-main-content"');
+        if (mainIdx !== -1) {
+          const mainDivStart = htmlOutput.lastIndexOf('<div', mainIdx);
+          let depth = 0;
+          let i = mainDivStart;
+          while (i < htmlOutput.length) {
+            if (
+              htmlOutput.startsWith('<div', i) &&
+              /[\s>]/.test(htmlOutput.charAt(i + 4) || '')
+            ) {
+              depth++;
+              const gt = htmlOutput.indexOf('>', i);
+              i = gt === -1 ? htmlOutput.length : gt + 1;
+              continue;
+            }
+            if (htmlOutput.startsWith('</div>', i)) {
+              depth--;
+              if (depth === 0) {
+                htmlOutput =
+                  htmlOutput.slice(0, i) + navHtml + htmlOutput.slice(i);
+                break;
+              }
+              i += 6;
+              continue;
+            }
+            i++;
+          }
+        }
       }
     }
 
@@ -1116,6 +1196,185 @@ function applyShellChrome(
       '</head>',
       '<style>.ws-breadcrumbs{display:none!important}</style></head>'
     );
+  }
+
+  // Always keep the note title read-only in the served viewer
+  htmlOutput = htmlOutput.replace(
+    /<div class="inline-title"([^>]*)>/g,
+    (_match, attrs: string) => {
+      const cleaned = String(attrs).replace(/\s*contenteditable="[^"]*"/g, '');
+      return `<div class="inline-title"${cleaned} contenteditable="false">`;
+    }
+  );
+  htmlOutput = htmlOutput.replace(
+    /(<div class="inline-title"[^>]*>)\s*([\s\S]*?)\s*(<\/div>)/,
+    (_match, open: string, text: string, close: string) =>
+      open + String(text).trim() + close
+  );
+
+  // Pin chrome: real flex regions (not sticky/fixed) so pins never overlap content
+  {
+    const pinBreadcrumbs =
+      !!plugin.settings.pinBreadcrumbs && plugin.settings.showBreadcrumbs !== false;
+    const pinTitle =
+      !!plugin.settings.pinTitle && plugin.settings.showTitle !== false;
+    const pinPrevNext =
+      !!plugin.settings.pinPrevNext && plugin.settings.showPrevNext !== false;
+
+    if (pinBreadcrumbs || pinTitle || pinPrevNext) {
+      htmlOutput = htmlOutput.replace(
+        '</head>',
+        `<style>
+.ws-main-content.ws-pin-layout{
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+  min-height:0;
+}
+.ws-pin-top{
+  flex-shrink:0;
+  background:var(--background-primary);
+  border-bottom:1px solid var(--background-modifier-border);
+  z-index:6;
+}
+.ws-pin-top .ws-breadcrumbs{
+  padding-top:10px;padding-bottom:6px;
+}
+.ws-pin-top .inline-title{
+  /* Keep pinned title sized like the in-note title; themes can blow up
+     .inline-title once it leaves .markdown-preview-view. */
+  font-size:var(--inline-title-size,1.8em)!important;
+  font-weight:var(--inline-title-weight,700);
+  line-height:1.3!important;
+  min-height:0!important;
+  height:auto!important;
+  max-height:none!important;
+  padding:4px 16px 10px!important;
+  margin:0!important;
+  border:none!important;
+  outline:none!important;
+  box-shadow:none!important;
+  white-space:normal!important;
+  overflow:hidden;
+  cursor:default!important;
+  caret-color:transparent!important;
+  user-select:text;
+}
+.ws-pin-top .ws-breadcrumbs+.inline-title{padding-top:0!important}
+.ws-pin-scroll{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+.ws-pin-bottom{
+  flex-shrink:0;
+  background:var(--background-primary);
+  z-index:6;
+}
+.ws-pin-bottom:has(.ws-prev-next[hidden]),
+.ws-pin-bottom:has(.ws-prev-next:empty){
+  display:none;
+}
+.ws-pin-bottom .ws-prev-next{
+  display:flex;justify-content:space-between;align-items:stretch;gap:12px;
+  margin:0;padding:10px 28px;
+  border-top:1px solid var(--background-modifier-border);
+  position:static;left:auto;width:auto;bottom:auto;
+  background:transparent;pointer-events:auto;
+  box-sizing:border-box;
+}
+.ws-pin-bottom .ws-prev-next-link{
+  pointer-events:auto;padding:8px 0;border-radius:4px;
+  background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;
+  color:var(--text-normal);max-width:48%;
+}
+.ws-pin-bottom .ws-prev-next-label{color:var(--text-muted)}
+.ws-pin-bottom .ws-prev-next-title{color:var(--text-normal)}
+@media(max-width:767px){
+  .ws-pin-top .ws-breadcrumbs{
+    padding-top:calc(52px + env(safe-area-inset-top,0px));
+    padding-left:56px;padding-right:56px;
+  }
+  .ws-pin-top .inline-title{
+    padding-top:52px;padding-left:16px;padding-right:16px;
+  }
+  .ws-pin-top .ws-breadcrumbs+.inline-title{padding-top:8px}
+  .ws-pin-bottom .ws-prev-next{flex-direction:column;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+  .ws-pin-bottom .ws-prev-next-link{max-width:100%}
+  .ws-pin-bottom .ws-prev-next-link.ws-next{margin-left:0;text-align:left;align-items:flex-start}
+}
+</style></head>`
+      );
+
+      const pinConfig = JSON.stringify({
+        breadcrumbs: pinBreadcrumbs,
+        title: pinTitle,
+        prevNext: pinPrevNext,
+      });
+
+      htmlOutput = htmlOutput.replace(
+        '</body>',
+        `<script>
+(function(){
+  var cfg=${pinConfig};
+  function applyPinLayout(){
+    var main=document.querySelector('.ws-main-content');
+    if(!main||main.classList.contains('ws-pin-layout'))return;
+
+    var breadcrumbs=document.getElementById('ws-breadcrumbs');
+    var title=main.querySelector('.inline-title');
+    var prevNext=document.getElementById('ws-prev-next');
+
+    var pinTop=document.createElement('div');
+    pinTop.className='ws-pin-top';
+    pinTop.setAttribute('data-ws-pin-top','1');
+
+    var pinBottom=document.createElement('div');
+    pinBottom.className='ws-pin-bottom';
+    pinBottom.setAttribute('data-ws-pin-bottom','1');
+
+    var pinScroll=document.createElement('div');
+    pinScroll.className='ws-pin-scroll';
+    pinScroll.setAttribute('data-ws-pin-scroll','1');
+
+    while(main.firstChild){
+      pinScroll.appendChild(main.firstChild);
+    }
+
+    if(cfg.breadcrumbs&&breadcrumbs){
+      pinTop.appendChild(breadcrumbs);
+    }
+    if(cfg.title&&title){
+      title.setAttribute('contenteditable','false');
+      title.removeAttribute('tabindex');
+      title.textContent=(title.textContent||'').trim();
+      pinTop.appendChild(title);
+    }
+    if(cfg.prevNext&&prevNext){
+      pinBottom.appendChild(prevNext);
+    }
+
+    main.classList.add('ws-pin-layout');
+    if(pinTop.childNodes.length){
+      main.appendChild(pinTop);
+    }
+    main.appendChild(pinScroll);
+    if(pinBottom.childNodes.length){
+      main.appendChild(pinBottom);
+    }
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',applyPinLayout);
+  }else{
+    applyPinLayout();
+  }
+})();
+</script></body>`
+      );
+    }
   }
 
   // Export buttons + theme toggle + graph button in sidebar footer

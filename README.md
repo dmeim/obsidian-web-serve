@@ -73,9 +73,12 @@ To stop the server, click the **Stop** ribbon button or use the command palette.
 | **Default file** | _(none)_ | File to serve at `/`; leave blank for file listing |
 | **Show sidebar** | `true` | Show the file navigation sidebar |
 | **Show title** | `true` | Show the note title inline above content |
+| **Pin note title** | `false` | Keep the note title stuck to the top while scrolling |
 | **Title alignment** | `left` | Note title alignment: `left`, `center`, or `right` |
 | **Show breadcrumbs** | `true` | Show the folder path above the note title |
+| **Pin breadcrumbs** | `false` | Keep breadcrumbs stuck to the top while scrolling |
 | **Show previous / next** | `true` | Show links to adjacent notes in the same folder |
+| **Pin previous / next** | `false` | Float previous / next links at the bottom of the viewport |
 
 ### Directory filtering
 

@@ -241,6 +241,17 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setName('Pin note title')
+      .setDesc('Keep the note title stuck to the top of the viewport while scrolling.')
+      .addToggle((cb) => {
+        cb.setValue(!!this.plugin.settings.pinTitle);
+        cb.onChange(async (value) => {
+          this.plugin.settings.pinTitle = value;
+          await this.saveAndReload();
+        });
+      });
+
+    new Setting(containerEl)
       .setName('Note title alignment')
       .setDesc('Align the note title in the web view.')
       .addDropdown((dd) => {
@@ -266,12 +277,34 @@ export class HtmlServerPluginSettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setName('Pin breadcrumbs')
+      .setDesc('Keep breadcrumbs stuck to the top of the viewport while scrolling.')
+      .addToggle((cb) => {
+        cb.setValue(!!this.plugin.settings.pinBreadcrumbs);
+        cb.onChange(async (value) => {
+          this.plugin.settings.pinBreadcrumbs = value;
+          await this.saveAndReload();
+        });
+      });
+
+    new Setting(containerEl)
       .setName('Show previous / next navigation')
       .setDesc('Show links to adjacent notes in the same folder.')
       .addToggle((cb) => {
         cb.setValue(this.plugin.settings.showPrevNext !== false);
         cb.onChange(async (value) => {
           this.plugin.settings.showPrevNext = value;
+          await this.saveAndReload();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName('Pin previous / next navigation')
+      .setDesc('Float previous / next links at the bottom of the viewport while scrolling.')
+      .addToggle((cb) => {
+        cb.setValue(!!this.plugin.settings.pinPrevNext);
+        cb.onChange(async (value) => {
+          this.plugin.settings.pinPrevNext = value;
           await this.saveAndReload();
         });
       });
