@@ -25,6 +25,8 @@ export type PluginSettings = {
   showSidebar: boolean;
   titleAlignment: TitleAlignment;
   showTitle: boolean;
+  showBreadcrumbs: boolean;
+  showPrevNext: boolean;
   useIconize: boolean;
   iconizeDataPath: string;
   iconizeIconPacksPath: string;
@@ -50,6 +52,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   showSidebar: true,
   titleAlignment: 'left',
   showTitle: true,
+  showBreadcrumbs: true,
+  showPrevNext: true,
   useIconize: false,
   iconizeDataPath: '.obsidian/plugins/obsidian-icon-folder/data.json',
   iconizeIconPacksPath: '.obsidian/icons',
@@ -153,6 +157,38 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); z-index: 49;
     }
+    .ws-breadcrumbs {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px;
+      padding: 8px 16px 0; font-size: 12px; line-height: 1.4;
+      color: var(--text-muted);
+    }
+    .ws-breadcrumbs:empty { display: none; }
+    .ws-breadcrumbs-sep { color: var(--text-faint, var(--text-muted)); opacity: 0.7; user-select: none; }
+    .ws-breadcrumbs-link {
+      color: var(--text-muted); text-decoration: none;
+    }
+    .ws-breadcrumbs-link:hover { color: var(--text-accent); text-decoration: underline; }
+    .ws-breadcrumbs-folder { color: var(--text-muted); }
+    .ws-breadcrumbs-current { color: var(--text-normal); }
+    .ws-prev-next {
+      display: flex; justify-content: space-between; align-items: stretch; gap: 12px;
+      margin: 28px 16px 16px; padding-top: 16px;
+      border-top: 1px solid var(--background-modifier-border);
+    }
+    .ws-prev-next[hidden] { display: none !important; }
+    .ws-prev-next-link {
+      display: flex; flex-direction: column; gap: 2px; max-width: 48%;
+      min-height: 44px; padding: 8px 0; text-decoration: none;
+      color: var(--text-normal); border-radius: 4px;
+    }
+    .ws-prev-next-link:hover { color: var(--text-accent); }
+    .ws-prev-next-link.ws-next { margin-left: auto; text-align: right; align-items: flex-end; }
+    .ws-prev-next-link.ws-prev { align-items: flex-start; }
+    .ws-prev-next-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+    .ws-prev-next-title { font-size: 14px; word-break: break-word; }
 
     /* ── Mobile: < 768px ── */
     @media (max-width: 767px) {
@@ -188,6 +224,11 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       .ws-main-content .markdown-preview-view { padding: 16px 12px; }
       .ws-main-content .markdown-preview-view img { max-width: 100%; height: auto; }
       .ws-main-content .inline-title { font-size: 1.6em; padding-top: 52px; }
+      .ws-main-content .ws-breadcrumbs { padding-top: 52px; padding-left: 12px; padding-right: 12px; }
+      .ws-main-content .ws-breadcrumbs + .inline-title { padding-top: 8px; }
+      .ws-prev-next { margin-left: 12px; margin-right: 12px; flex-direction: column; }
+      .ws-prev-next-link { max-width: 100%; }
+      .ws-prev-next-link.ws-next { margin-left: 0; text-align: left; align-items: flex-start; }
       .ws-main-content table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .ws-main-content pre { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       #ws-excalidraw-controls {
@@ -240,10 +281,12 @@ export const DEFAULT_SETTINGS: PluginSettings = {
                             <div class="markdown-preview-sizer markdown-preview-section" style="padding-bottom: 369px; min-height: 1158px;">
                               <div class="markdown-preview-pusher" style="width: 1px; height: 0.1px; margin-bottom: 0px;"></div>
                               <div class="mod-header">
+                                <nav class="ws-breadcrumbs" id="ws-breadcrumbs" aria-label="Breadcrumb">#VAR{BREADCRUMBS}</nav>
                                 <div class="inline-title" contenteditable="true" spellcheck="false" tabindex="-1" enterkeyhint="done">#VAR{RENDERED_CONTENT_FILE_NAME}
                                 </div>
                                 #VAR{RENDERED_CONTENT}
                               </div>
+                              <nav class="ws-prev-next" id="ws-prev-next" aria-label="Previous and next notes" hidden></nav>
                             </div>
                           </div>
                         </div>
@@ -442,6 +485,68 @@ export const DEFAULT_SETTINGS: PluginSettings = {
       });
     }
 
+    function parentDir(filePath) {
+      var idx = filePath.lastIndexOf('/');
+      return idx === -1 ? '' : filePath.slice(0, idx);
+    }
+
+    function displayNavName(fileName) {
+      return fileName.replace(/\\.excalidraw\\.md$/i, '').replace(/\\.(md|canvas)$/i, '');
+    }
+
+    function updatePrevNext(files) {
+      var nav = document.getElementById('ws-prev-next');
+      if (!nav || nav.getAttribute('data-ws-disabled') === '1') return;
+      var currentPath = decodeURI(window.location.pathname).substring(1);
+      if (!currentPath) {
+        nav.hidden = true;
+        nav.innerHTML = '';
+        return;
+      }
+      var parent = parentDir(currentPath);
+      var siblings = files
+        .filter(function(f) { return parentDir(f.path) === parent; })
+        .sort(function(a, b) { return a.name.localeCompare(b.name); });
+      var index = -1;
+      for (var i = 0; i < siblings.length; i++) {
+        if (siblings[i].path === currentPath) { index = i; break; }
+      }
+      if (index === -1) {
+        nav.hidden = true;
+        nav.innerHTML = '';
+        return;
+      }
+      var prev = index > 0 ? siblings[index - 1] : null;
+      var next = index < siblings.length - 1 ? siblings[index + 1] : null;
+      if (!prev && !next) {
+        nav.hidden = true;
+        nav.innerHTML = '';
+        return;
+      }
+      var html = '';
+      if (prev) {
+        html += '<a class="ws-prev-next-link ws-prev" href="/' + encodeURI(prev.path).replace(/#/g, '%23') + '">' +
+          '<span class="ws-prev-next-label">&larr; Previous</span>' +
+          '<span class="ws-prev-next-title"></span></a>';
+      }
+      if (next) {
+        html += '<a class="ws-prev-next-link ws-next" href="/' + encodeURI(next.path).replace(/#/g, '%23') + '">' +
+          '<span class="ws-prev-next-label">Next &rarr;</span>' +
+          '<span class="ws-prev-next-title"></span></a>';
+      }
+      nav.innerHTML = html;
+      var links = nav.querySelectorAll('.ws-prev-next-link');
+      var linkIdx = 0;
+      if (prev) {
+        links[linkIdx].querySelector('.ws-prev-next-title').textContent = displayNavName(prev.name);
+        linkIdx++;
+      }
+      if (next) {
+        links[linkIdx].querySelector('.ws-prev-next-title').textContent = displayNavName(next.name);
+      }
+      nav.hidden = false;
+    }
+
     Promise.all([
       fetch('/.api/files').then(function(r) { return r.json(); }),
       fetch('/.api/icons').then(function(r) { return r.json(); }).catch(function() { return { iconMap: {}, defaults: {} }; })
@@ -475,6 +580,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
           });
         });
       }
+      updatePrevNext(data.files || []);
     }).catch(function(err) {
       document.getElementById('ws-file-tree').innerHTML = '<div style="padding:12px;color:var(--text-error);">Failed to load files</div>';
       console.error(err);
