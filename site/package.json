@@ -1,0 +1,29 @@
+{
+  "name": "site",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "generate-types": "wrangler types",
+    "deploy": "npm run build && wrangler deploy",
+    "preview:cf": "npm run build && wrangler versions upload --preview-alias landing"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.1.3",
+    "@astrojs/react": "^6.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "astro": "^7.1.1",
+    "framer-motion": "^12.42.2",
+    "motion": "^12.42.2",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "wrangler": "^4.112.0"
+  }
+}
